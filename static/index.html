@@ -1,0 +1,605 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SUBTEXT — lyric context search</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700;12..96,800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --cream:#FFF7EA; --paper:#FFFFFF;
+    --ink:#181231; --ink-soft:#6E6691; --ink-faint:#A39CBC;
+    --lyric:#FB8B24;   --lyric-bg:#FFEEDB;     /* SAYS — Musixmatch + Mistral */
+    --market:#9B5DE5;  --market-bg:#EDE3FC;    /* SELLS — Songstats */
+    --teal:#06C2B0;    --teal-bg:#D5F6F2;      /* brand / UI accent */
+    --flag:#FF5470;    --flag-bg:#FFE0E6;
+    --go:#1FB873;      --go-bg:#D6F6E7;
+    --gold:#FFC233;    --gold-bg:#FFF1CC;
+    --sky:#3AA0FF;
+    --bd:2px solid var(--ink);
+    --sh:4px 4px 0 var(--ink); --sh-lg:6px 6px 0 var(--ink); --sh-sm:2px 2px 0 var(--ink);
+    --r:18px; --r-sm:12px;
+    --disp:"Bricolage Grotesque",system-ui,sans-serif;
+    --body:"Inter",system-ui,-apple-system,sans-serif;
+    --mono:"JetBrains Mono",ui-monospace,monospace;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;min-height:100%}
+  body{font-family:var(--body);color:var(--ink);font-size:15px;line-height:1.5;background:var(--cream);
+    -webkit-font-smoothing:antialiased;overflow-x:hidden;position:relative}
+  body::before,body::after{content:"";position:fixed;border-radius:50%;filter:blur(70px);z-index:0;pointer-events:none}
+  body::before{width:460px;height:460px;background:var(--lyric);opacity:.15;top:-160px;right:-120px}
+  body::after{width:420px;height:420px;background:var(--market);opacity:.12;bottom:-180px;left:-140px}
+  ::selection{background:var(--gold)}
+  button{font-family:inherit;color:inherit;cursor:pointer;border:none;background:none}
+  .mono{font-family:var(--mono)}
+  .app{position:relative;z-index:1;max-width:1180px;margin:0 auto;padding:24px 26px 70px}
+
+  /* header */
+  header.top{display:flex;align-items:center;gap:18px;flex-wrap:wrap}
+  .brand{display:flex;align-items:center;gap:12px}
+  .brand .glyph{width:46px;height:46px;display:grid;place-items:center;background:var(--gold);border:var(--bd);border-radius:14px;box-shadow:var(--sh);transform:rotate(-4deg)}
+  .brand h1{font-family:var(--disp);font-weight:800;font-size:24px;letter-spacing:-.01em;margin:0;line-height:1}
+  .brand .sub{font-size:11px;color:var(--ink-soft);letter-spacing:.14em;text-transform:uppercase;margin-top:3px;font-weight:600}
+  .briefbar{flex:1 1 460px;display:flex;align-items:stretch;min-width:300px;background:var(--paper);border:var(--bd);border-radius:14px;box-shadow:var(--sh);overflow:hidden;transition:box-shadow .15s}
+  .briefbar:focus-within{box-shadow:var(--sh-lg)}
+  .briefbar .ic{display:grid;place-items:center;padding:0 6px 0 16px;color:var(--ink-soft)}
+  .briefbar input{flex:1;border:none;background:none;color:var(--ink);font-size:15px;font-weight:500;padding:15px 8px;outline:none;min-width:0}
+  .briefbar input::placeholder{color:var(--ink-faint);font-weight:400}
+  .btn-search{display:flex;align-items:center;gap:8px;background:var(--teal);color:var(--ink);font-weight:700;padding:0 20px;font-size:14.5px;border-left:var(--bd);transition:filter .12s}
+  .btn-search:hover{filter:brightness(1.05)}
+
+  /* samples */
+  .samples{display:flex;gap:9px;flex-wrap:wrap;margin:18px 0 2px;align-items:center}
+  .samples .lab{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-soft);font-weight:700;margin-right:2px}
+  .chip-s{font-size:13px;font-weight:600;color:var(--ink);background:var(--paper);border:var(--bd);padding:8px 14px;border-radius:999px;box-shadow:var(--sh-sm);transition:transform .12s,box-shadow .12s}
+  .chip-s:hover{transform:translate(-1px,-1px);box-shadow:var(--sh)}
+  .chip-s:active{transform:translate(1px,1px);box-shadow:none}
+  /* interpreted brief */
+  .interp{display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin:14px 0 0}
+  .interp .ilab{font-size:10.5px;letter-spacing:.13em;text-transform:uppercase;color:var(--ink-faint);font-weight:700}
+  .ichip{font-size:12px;font-weight:700;border:var(--bd);border-radius:999px;padding:4px 11px;box-shadow:var(--sh-sm)}
+  .ichip .ik{font-size:8.5px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;opacity:.6;margin-right:5px}
+  .ichip.g{background:var(--teal-bg)} .ichip.m{background:var(--market-bg)} .ichip.t{background:var(--lyric-bg)}
+
+  /* controls */
+  .controls{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:20px 0 18px;padding:16px;background:var(--paper);border:var(--bd);border-radius:var(--r);box-shadow:var(--sh)}
+  .ctl-group{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .ctl-label{font-size:10.5px;letter-spacing:.13em;text-transform:uppercase;color:var(--ink-faint);font-weight:700;margin-right:2px}
+  .divider{width:2px;align-self:stretch;background:var(--cream);border-radius:2px}
+  .press{display:inline-flex;align-items:center;gap:8px;font-weight:700;font-size:13.5px;color:var(--ink-soft);background:var(--paper);border:var(--bd);border-radius:999px;padding:9px 15px;min-height:44px;transform:translate(0,0);transition:transform .14s cubic-bezier(.34,1.56,.64,1),box-shadow .14s,background .14s,color .14s}
+  .press .dot{width:18px;height:18px;border-radius:50%;border:var(--bd);background:var(--cream);display:grid;place-items:center;transition:background .14s}
+  .press .dot svg{width:11px;height:11px;opacity:0;transform:scale(.4);transition:opacity .14s,transform .14s}
+  .press:hover{transform:translate(-1px,-1px);box-shadow:var(--sh-sm)}
+  .press:active{transform:translate(2px,2px);box-shadow:none}
+  .press[aria-pressed="true"]{color:var(--ink);box-shadow:var(--sh);transform:translate(-2px,-2px)}
+  .press[aria-pressed="true"] .dot svg{opacity:1;transform:scale(1)}
+  .press.clean[aria-pressed="true"]{background:var(--go-bg)} .press.clean[aria-pressed="true"] .dot{background:var(--go)}
+  .press.gems[aria-pressed="true"]{background:var(--gold-bg)} .press.gems[aria-pressed="true"] .dot{background:var(--gold)}
+  .nogo-wrap{display:flex;gap:7px;flex-wrap:wrap;align-items:center}
+  .nogo{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:700;background:var(--flag-bg);color:var(--ink);border:var(--bd);border-radius:999px;padding:6px 7px 6px 12px;box-shadow:var(--sh-sm)}
+  .nogo button{display:grid;place-items:center;width:18px;height:18px;border-radius:50%;background:var(--flag);color:#fff;border:1.5px solid var(--ink)}
+  .addnogo{position:relative}
+  .addnogo > button{display:flex;align-items:center;gap:5px;font-weight:700;font-size:12.5px;color:var(--ink);background:var(--paper);border:2px dashed var(--ink-soft);border-radius:999px;padding:8px 13px;min-height:40px;transition:border-color .12s}
+  .addnogo > button:hover{border-color:var(--ink)}
+  .pop{position:absolute;top:calc(100% + 8px);left:0;z-index:30;min-width:190px;background:var(--paper);border:var(--bd);border-radius:14px;box-shadow:var(--sh-lg);padding:7px;display:none}
+  .pop.open{display:block}
+  .pop button{display:flex;width:100%;align-items:center;gap:8px;padding:9px 11px;border-radius:9px;font-weight:600;font-size:13px;color:var(--ink)}
+  .pop button:hover{background:var(--cream)}
+  .counter{margin-left:auto;display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+  .pillstat{font-family:var(--mono);font-weight:700;font-size:12.5px;border:var(--bd);border-radius:999px;padding:6px 12px}
+  .pillstat.ok{background:var(--teal-bg)} .pillstat.rm{background:var(--flag-bg)}
+  /* grow catalog */
+  .growbar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:0 0 18px;padding:12px 16px;background:var(--paper);border:var(--bd);border-radius:var(--r);box-shadow:var(--sh-sm)}
+  .growcount{font-family:var(--mono);font-weight:700;font-size:13px;background:var(--lyric-bg);border:var(--bd);border-radius:999px;padding:6px 12px;white-space:nowrap}
+  .growbudget{font-family:var(--mono);font-weight:700;font-size:11.5px;color:var(--ink-soft);background:var(--cream);border:var(--bd);border-radius:999px;padding:6px 11px;white-space:nowrap}
+  .growbtn{display:inline-flex;align-items:center;gap:7px;font-weight:700;font-size:13.5px;color:var(--ink);background:var(--gold);border:var(--bd);border-radius:999px;padding:9px 16px;box-shadow:var(--sh-sm);transition:transform .12s}
+  .growbtn:hover:not(:disabled){transform:translate(-1px,-1px);box-shadow:var(--sh)}
+  .growbtn:active:not(:disabled){transform:translate(1px,1px);box-shadow:none}
+  .growbtn:disabled{opacity:.55;cursor:progress}
+  .growprog{flex:1;min-width:120px;height:12px;border:var(--bd);border-radius:999px;background:var(--cream);overflow:hidden}
+  .growfill{height:100%;width:0%;background:var(--lyric);transition:width .4s ease}
+  .growmsg{font-family:var(--mono);font-size:11.5px;color:var(--ink-soft);font-weight:600;flex-basis:100%}
+
+  /* layout */
+  .layout{display:grid;grid-template-columns:1fr 312px;gap:18px;align-items:start}
+  @media(max-width:900px){.layout{grid-template-columns:1fr}}
+
+  .results{display:flex;flex-direction:column;gap:14px}
+  .card{position:relative;background:var(--paper);border:var(--bd);border-radius:var(--r);box-shadow:var(--sh);padding:17px 19px;display:grid;grid-template-columns:34px 1fr auto;gap:16px;cursor:pointer;transition:transform .15s cubic-bezier(.34,1.4,.64,1),box-shadow .15s}
+  .card:hover{transform:translate(-2px,-2px);box-shadow:var(--sh-lg)}
+  .card:active{transform:translate(1px,1px);box-shadow:var(--sh-sm)}
+  .card:focus-visible{outline:3px solid var(--sky);outline-offset:2px}
+  .rank{font-family:var(--mono);font-weight:700;font-size:15px;color:var(--ink-faint);padding-top:2px}
+  .ctitle{display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+  .ctitle h3{font-family:var(--disp);font-size:19px;font-weight:700;margin:0;letter-spacing:-.01em}
+  .ctitle .artist{color:var(--ink-soft);font-size:14.5px;font-weight:600}
+  .tagmini{font-size:10px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;border:var(--bd);border-radius:7px;padding:2px 7px;display:inline-flex;align-items:center;gap:4px;box-shadow:var(--sh-sm)}
+  .tagmini.gem{background:var(--gold-bg)} .tagmini.subtext{background:var(--lyric-bg)} .tagmini.flagged{background:var(--flag-bg)}
+  .meta{display:flex;gap:9px;flex-wrap:wrap;margin:8px 0 10px;font-family:var(--mono);font-weight:500;font-size:11.5px;color:var(--ink-soft)}
+  .meta .dot{color:var(--ink-faint)}
+  .meaning{font-size:14.5px;color:#2c2748;margin:0 0 9px;max-width:64ch;line-height:1.55}
+  .meaning .lit{color:var(--ink-soft)}
+  .meaning em{font-style:normal;font-weight:700;color:var(--ink);background:var(--lyric-bg);padding:1px 5px;border-radius:5px;box-decoration-break:clone}
+  .why{font-size:12.5px;color:var(--ink-soft);margin:0 0 11px;font-weight:500;max-width:62ch}
+  .why em{font-style:normal;font-weight:700;color:var(--ink)}
+  .tags{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  .tg{display:inline-flex;align-items:center;gap:7px;font-size:12px;font-weight:600;padding:5px 10px;border-radius:9px;border:var(--bd)}
+  .tg .k{font-size:9px;font-weight:800;letter-spacing:.1em;text-transform:uppercase}
+  .tg.lyric{background:var(--lyric-bg)} .tg.lyric .k{color:#b8620a}
+  .tg.market{background:var(--market-bg)} .tg.market .k{color:#7338c4}
+  .conf{display:inline-flex;align-items:center;gap:7px;font-family:var(--mono);font-weight:700;font-size:11px;color:var(--ink-soft);border:var(--bd);border-radius:9px;padding:5px 9px;background:var(--paper)}
+  .conf .cbar{width:34px;height:7px;border-radius:999px;background:var(--cream);border:1.5px solid var(--ink);overflow:hidden}
+  .conf .cbar span{display:block;height:100%;background:var(--teal)}
+
+  .cright{display:flex;flex-direction:column;align-items:flex-end;gap:8px;min-width:96px}
+  .score{font-family:var(--mono);font-weight:700;font-size:17px;color:var(--ink);background:var(--gold);border:var(--bd);border-radius:11px;box-shadow:var(--sh-sm);padding:6px 12px;transform:rotate(2deg)}
+  .score small{font-weight:700;font-size:11px}
+  .mkt-mini{font-family:var(--mono);font-weight:700;font-size:11.5px;color:var(--ink-soft);text-align:right}
+  .mkt-mini .up{color:#7338c4}
+
+  /* rail */
+  .rail{display:flex;flex-direction:column;gap:16px;position:sticky;top:18px}
+  .panel{background:var(--paper);border:var(--bd);border-radius:var(--r);box-shadow:var(--sh);padding:17px}
+  .panel h4{font-family:var(--disp);font-size:15px;font-weight:700;margin:0 0 3px;display:flex;align-items:center;gap:8px}
+  .panel .badge-n{font-family:var(--mono);font-weight:700;font-size:12px;background:var(--flag);color:#fff;border:var(--bd);border-radius:999px;padding:2px 9px;margin-left:auto}
+  .panel .p-sub{font-size:11.5px;color:var(--ink-soft);margin:0 0 14px;font-weight:500}
+  .rm-group{margin-bottom:13px} .rm-group:last-child{margin-bottom:0}
+  .rm-head{display:flex;align-items:center;justify-content:space-between;font-size:12.5px;font-weight:700;color:var(--ink);margin-bottom:7px}
+  .rm-head .cnt{font-family:var(--mono);background:var(--flag-bg);border:var(--bd);border-radius:7px;padding:0 7px;font-size:11px}
+  .rm-item{font-size:12.5px;color:var(--ink-soft);padding:4px 0 4px 16px;position:relative;font-weight:500}
+  .rm-item::before{content:"✕";position:absolute;left:0;top:4px;color:var(--flag);font-weight:800;font-size:10px}
+  .rm-item b{color:var(--ink);font-weight:700}
+  .rm-empty{font-size:12.5px;color:var(--ink-soft);font-weight:500}
+  .legend .lg{display:flex;gap:11px;align-items:flex-start;padding:11px 0;border-top:2px solid var(--cream)}
+  .legend .lg:first-of-type{border-top:none}
+  .legend .sw{width:16px;height:16px;border-radius:5px;border:var(--bd);margin-top:2px;flex:0 0 auto}
+  .legend .lg b{font-family:var(--disp);font-weight:700;font-size:14px}
+  .legend .lg p{margin:1px 0 0;font-size:11.5px;color:var(--ink-soft);line-height:1.45;font-weight:500}
+  .legend .lg .src{font-family:var(--mono);font-weight:700;font-size:10px;color:var(--ink-soft)}
+
+  /* drawer */
+  .scrim{position:fixed;inset:0;background:rgba(24,18,49,.34);opacity:0;pointer-events:none;transition:opacity .22s;z-index:50}
+  .scrim.open{opacity:1;pointer-events:auto}
+  .drawer{position:fixed;top:0;right:0;height:100%;width:min(470px,95vw);background:var(--cream);border-left:var(--bd);transform:translateX(103%);transition:transform .26s cubic-bezier(.4,1.2,.5,1);z-index:60;overflow-y:auto;padding:24px}
+  .drawer.open{transform:translateX(0)}
+  .dclose{position:absolute;top:18px;right:18px;width:40px;height:40px;border-radius:11px;display:grid;place-items:center;background:var(--paper);border:var(--bd);box-shadow:var(--sh-sm);transition:transform .12s}
+  .dclose:hover{transform:translate(-1px,-1px);box-shadow:var(--sh)}
+  .deyebrow{font-family:var(--mono);font-weight:700;font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-soft)}
+  .drawer h2{font-family:var(--disp);font-size:26px;font-weight:800;margin:6px 0 2px;padding-right:46px;letter-spacing:-.01em}
+  .dartist{color:var(--ink-soft);font-size:14px;font-weight:600;margin-bottom:18px}
+  .dblock{background:var(--paper);border:var(--bd);border-radius:14px;box-shadow:var(--sh-sm);padding:15px;margin-bottom:13px}
+  .dlab{font-family:var(--disp);font-size:12px;font-weight:700;color:var(--ink);margin-bottom:11px;display:flex;align-items:center;gap:8px;text-transform:uppercase}
+  .dlab .pip{width:11px;height:11px;border-radius:4px;border:var(--bd)}
+  .crow{margin-bottom:11px}
+  .crow:last-child{margin-bottom:0}
+  .crow .ck{font-size:10px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-faint);margin-bottom:3px}
+  .crow .cv{font-size:14px;color:#2c2748;line-height:1.5;font-weight:500}
+  .crow.hero .cv{font-weight:700;color:var(--ink);background:var(--lyric-bg);border:var(--bd);border-radius:9px;padding:8px 11px}
+  .confbar-wrap{display:flex;align-items:center;gap:10px}
+  .confbar{flex:1;height:12px;border-radius:999px;background:var(--cream);border:var(--bd);overflow:hidden}
+  .confbar span{display:block;height:100%;background:var(--teal)}
+  .confnum{font-family:var(--mono);font-weight:700;font-size:13px}
+  .safety-row{display:flex;flex-wrap:wrap;gap:7px}
+  .sfx{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:700;padding:5px 10px;border-radius:8px;border:var(--bd)}
+  .sfx.ok{background:var(--go-bg)} .sfx.bad{background:var(--flag-bg)}
+  .sfx-note{font-size:11.5px;color:var(--ink-soft);font-weight:600;margin-top:9px;line-height:1.45}
+  .stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .stat{background:var(--cream);border:var(--bd);border-radius:11px;padding:11px}
+  .stat .sv{font-family:var(--mono);font-weight:700;font-size:18px}
+  .stat .sl{font-size:11px;color:var(--ink-soft);margin-top:2px;font-weight:600}
+  .dcta{display:flex;gap:10px;margin-top:4px}
+  .dcta button{flex:1;padding:13px;border-radius:12px;font-weight:700;font-size:13.5px;min-height:48px;border:var(--bd);box-shadow:var(--sh-sm);transition:transform .12s}
+  .dcta button:hover{transform:translate(-1px,-1px);box-shadow:var(--sh)}
+  .dcta button:active{transform:translate(1px,1px);box-shadow:none}
+  .dcta .primary{background:var(--teal)} .dcta .ghost{background:var(--paper)}
+
+  .footnote{margin-top:32px;text-align:center;font-size:12px;color:var(--ink-soft);font-weight:500}
+  .footnote b{color:var(--ink);font-weight:700}
+  @media (prefers-reduced-motion: reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- HEADER -->
+  <header class="top">
+    <div class="brand">
+      <div class="glyph"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#181231" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h2l2-7 4 18 3-11 2 4h5"/></svg></div>
+      <div><h1>SUBTEXT</h1><div class="sub">lyric context search</div></div>
+    </div>
+    <form class="briefbar" id="briefForm" onsubmit="return runSearch(event)">
+      <span class="ic"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.2-3.2"/></svg></span>
+      <input id="brief" aria-label="Describe the meaning you're looking for"
+        placeholder="Describe what the song should be about…"
+        value="Songs about losing control — even if the lyrics never say it outright">
+      <button class="btn-search" type="submit"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>Search</button>
+    </form>
+  </header>
+
+  <!-- SAMPLES -->
+  <div class="samples">
+    <span class="lab">Try</span>
+    <button class="chip-s" onclick="loadSample(0)">Hidden heartbreak</button>
+    <button class="chip-s" onclick="loadSample(1)">Losing control</button>
+    <button class="chip-s" onclick="loadSample(2)">Meaning hidden in metaphor</button>
+  </div>
+
+  <div class="interp" id="interp" hidden></div>
+
+  <!-- CONTROLS -->
+  <div class="controls">
+    <div class="ctl-group">
+      <span class="ctl-label">Filter</span>
+      <button class="press clean" id="tClean" aria-pressed="true" onclick="toggleClean()">
+        <span class="dot"><svg viewBox="0 0 24 24" fill="none" stroke="#181231" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l4 4 10-11"/></svg></span>Clean only</button>
+      <button class="press gems" id="tGems" aria-pressed="false" onclick="toggleGems()">
+        <span class="dot"><svg viewBox="0 0 24 24" fill="#181231"><path d="M12 2l3 6 7 .9-5 4.6 1.4 6.9L12 18l-6.4 3.4L7 15 2 10.4 9 9.5z"/></svg></span>Undiscovered gems</button>
+    </div>
+    <span class="divider"></span>
+    <div class="ctl-group">
+      <span class="ctl-label">No-go</span>
+      <div class="nogo-wrap" id="nogoWrap"></div>
+      <div class="addnogo"><button onclick="togglePop()"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>Add</button><div class="pop" id="nogoPop"></div></div>
+    </div>
+    <div class="counter">
+      <span class="pillstat ok" id="cMatch">0 matches</span>
+      <span class="pillstat rm" id="cRemoved">0 filtered</span>
+    </div>
+  </div>
+
+  <!-- GROW CATALOG -->
+  <div class="growbar">
+    <span class="growcount" id="growCount">— songs</span>
+    <span class="growbudget" id="growBudget"></span>
+    <button class="growbtn" id="growBtn" onclick="growCatalog()">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+      Grow catalog +50</button>
+    <div class="growprog" id="growProg" hidden><div class="growfill" id="growFill"></div></div>
+    <span class="growmsg" id="growMsg"></span>
+  </div>
+
+  <!-- SPLIT -->
+  <div class="layout">
+    <main><div class="results" id="results"></div></main>
+    <aside class="rail">
+      <section class="panel">
+        <h4><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#181231" stroke-width="2.2" stroke-linejoin="round"><path d="M3 4h18l-7 8v7l-4 2v-9z"/></svg>Filtered out<span class="badge-n" id="rmBadge">0</span></h4>
+        <p class="p-sub">Every exclusion shows its reason.</p>
+        <div id="removedList"></div>
+      </section>
+      <section class="panel legend">
+        <h4>How it reads a song</h4>
+        <p class="p-sub">Two signals — meaning &amp; momentum.</p>
+        <div class="lg"><span class="sw" style="background:var(--lyric)"></span><div><b>What it says</b><p>Mistral reads the lyrics for <b>real meaning &amp; subtext</b> — even when the title and words hide it. <span class="src">Musixmatch + Mistral</span></p></div></div>
+        <div class="lg"><span class="sw" style="background:var(--market)"></span><div><b>What it sells</b><p>Streams, momentum &amp; playlist reach. <span class="src">Songstats</span></p></div></div>
+      </section>
+    </aside>
+  </div>
+
+  <p class="footnote"><b>Subtext.</b> Tap <b>Clean only</b>, toggle <b>Undiscovered gems</b>, or <b>Add</b> a no-go artist to watch the compliance gate filter live · open a track for its full reading.</p>
+</div>
+
+<!-- DRAWER -->
+<div class="scrim" id="scrim" onclick="closeDrawer()"></div>
+<aside class="drawer" id="drawer" role="dialog" aria-label="Track detail" aria-modal="true">
+  <button class="dclose" onclick="closeDrawer()" aria-label="Close"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+  <div id="drawerBody"></div>
+</aside>
+
+<script>
+/* ---------- mock catalog (fictional); fields mirror Mistral + Songstats output ---------- */
+let TRACKS=[
+ {id:1,title:"Undertow",artist:"Mara Quill",genre:"Alternative",lang:"EN",year:2024,instrumental:false,
+  literal:"someone driving away from home at night, refusing to look back",
+  trueSubject:"losing control during an emotional breakdown",
+  subtext:"the night drive is dissociation — motion standing in for a mind coming apart",
+  scenario:"alone in a car on an empty pre-dawn highway",
+  themes:["losing control","grief"],lyricMood:["defiant","mournful"],sentiment:-.45,confidence:.84,divergent:false,
+  explicit:false,safety:{},streams:182000,pop:38,playlists:64,tiktok:1200,momentum:.66,gem:true,match:96,
+  why:"Theme of <em>losing control</em> is explicit in the read; an undiscovered track."},
+ {id:2,title:"Neon Saints",artist:"Cass Holloway",genre:"Pop",lang:"EN",year:2023,instrumental:false,
+  literal:"a euphoric night out dancing with friends",
+  trueSubject:"numbing a fresh heartbreak",
+  subtext:"the celebration is avoidance — the brighter it gets, the more it's hiding",
+  scenario:"a crowded club at 2am, smiling too hard",
+  themes:["heartbreak","avoidance"],lyricMood:["forced joy","melancholy"],sentiment:-.4,confidence:.78,divergent:true,
+  explicit:false,safety:{},streams:1300000,pop:64,playlists:210,tiktok:24000,momentum:.61,gem:false,match:90,
+  why:"Reads as a party song on the surface — <em>subtext is heartbreak</em>."},
+ {id:3,title:"Honeythief",artist:"Sable Wren",genre:"R&B",lang:"EN",year:2024,instrumental:false,
+  literal:"an intoxicating love song about craving someone",
+  trueSubject:"substance dependence — the 'lover' is the addiction",
+  subtext:"every line about wanting, getting, and relapsing maps onto using",
+  scenario:"the loop of craving and regret",
+  themes:["addiction","dependence","craving"],lyricMood:["seductive","desperate"],sentiment:-.2,confidence:.71,divergent:true,
+  explicit:false,safety:{drugs:true},streams:520000,pop:50,playlists:130,tiktok:8000,momentum:.7,gem:false,match:84,
+  why:"Sounds like a love song — Mistral reads the subtext as <em>addiction</em> and flags it. A keyword filter would miss this."},
+ {id:4,title:"Paper Skin",artist:"Edie Sorrel",genre:"Singer-songwriter",lang:"EN",year:2024,instrumental:false,
+  literal:"unsent letters to someone who's gone",
+  trueSubject:"grief after a death",
+  subtext:"stated plainly — no disguise here",
+  scenario:"writing alone at a kitchen table",
+  themes:["loss","grief"],lyricMood:["mournful"],sentiment:-.6,confidence:.9,divergent:false,
+  explicit:false,safety:{},streams:410000,pop:46,playlists:95,tiktok:3000,momentum:.44,gem:false,match:82,
+  why:"Overt <em>grief &amp; loss</em>; very high confidence, no ambiguity."},
+ {id:5,title:"Bar Lights",artist:"Marlow Quinn",genre:"Country",lang:"EN",year:2023,instrumental:false,
+  literal:"one more round at the bar with the regulars",
+  trueSubject:"loneliness and avoiding going home",
+  subtext:"the drinking is a way to not be alone with himself",
+  scenario:"last call, nursing one more",
+  themes:["loneliness","drinking","nightlife"],lyricMood:["wry","lonely"],sentiment:-.1,confidence:.69,divergent:true,
+  explicit:false,safety:{alcohol:true},streams:880000,pop:58,playlists:150,tiktok:6000,momentum:.5,gem:false,match:76,
+  why:"Clean of profanity, but references <em>drinking</em> — brand rules may apply; subtext is loneliness."},
+ {id:6,title:"Static Bloom",artist:"Vela Mott",genre:"Alternative",lang:"EN",year:2024,instrumental:false,
+  literal:"a calm description of an ordinary day",
+  trueSubject:"masked anxiety and dread",
+  subtext:"the flat, calm surface is barely containing panic",
+  scenario:"going through the motions while unraveling",
+  themes:["anxiety","losing control"],lyricMood:["uneasy"],sentiment:-.3,confidence:.7,divergent:true,
+  explicit:false,safety:{},streams:540000,pop:49,playlists:88,tiktok:4000,momentum:.4,gem:false,match:83,
+  why:"Calm on the surface; the <em>subtext is anxiety &amp; losing control</em>."},
+ {id:7,title:"Lantern",artist:"The Hollow Coast",genre:"Folk",lang:"EN",year:2024,instrumental:false,
+  literal:"keeping a single light on through the night",
+  trueSubject:"resilience and quiet hope after hardship",
+  subtext:"the lantern is endurance itself",
+  scenario:"the last hour before dawn",
+  themes:["hope","resilience"],lyricMood:["tender"],sentiment:.4,confidence:.82,divergent:false,
+  explicit:false,safety:{},streams:64000,pop:25,playlists:30,tiktok:900,momentum:.55,gem:true,match:80,
+  why:"<em>Resilience &amp; hope</em>; a low-stream gem if you want something fresh."},
+ {id:8,title:"Wax & Wane",artist:"Wren & the Tide",genre:"Indie",lang:"EN",year:2023,instrumental:false,
+  literal:"watching the moon, thinking of someone far away",
+  trueSubject:"longing for a relationship that's fading",
+  subtext:"the waxing and waning mirrors a love losing its pull",
+  scenario:"a window at night, phone face-down",
+  themes:["longing"],lyricMood:["wistful"],sentiment:.1,confidence:.76,divergent:false,
+  explicit:false,safety:{},streams:230000,pop:42,playlists:70,tiktok:2000,momentum:.48,gem:false,match:78,
+  why:"Wistful <em>longing</em> — a gentle thematic fit."},
+ {id:9,title:"Glass Engine",artist:"North Atlas",genre:"Electronic",lang:"—",year:2023,instrumental:true,
+  literal:"",trueSubject:"",subtext:"",scenario:"",
+  themes:[],lyricMood:[],sentiment:0,confidence:0,divergent:false,
+  explicit:false,safety:{},streams:91000,pop:31,playlists:40,tiktok:500,momentum:.58,gem:true,match:60,
+  why:"<em>Instrumental</em> — no lyrics to interpret, so it ranks low for a meaning-based brief."},
+ {id:10,title:"Hold Your Fire",artist:"Ros Tamar",genre:"Hip-hop",lang:"EN",year:2022,instrumental:false,
+  literal:"a confrontation that escalates",
+  trueSubject:"revenge and retaliation",
+  subtext:"no metaphor — it's literal aggression",
+  scenario:"a standoff that won't de-escalate",
+  themes:["violence","revenge"],lyricMood:["aggressive"],sentiment:-.4,confidence:.86,divergent:false,
+  explicit:true,safety:{profanity:true,violence:true},streams:4200000,pop:78,playlists:300,tiktok:40000,momentum:.6,gem:false,match:58,
+  why:"Explicit and violent — included so you can see the gate work."},
+ {id:11,title:"Gold Teeth",artist:"Juno Reyes",genre:"Hip-hop",lang:"EN",year:2024,instrumental:false,
+  literal:"flexing wealth and status",
+  trueSubject:"surface flex, with open drug references",
+  subtext:"little hidden meaning — it's mostly what it says",
+  scenario:"a victory-lap braggadocio track",
+  themes:["money","drugs"],lyricMood:["brash"],sentiment:.1,confidence:.8,divergent:false,
+  explicit:true,safety:{profanity:true,drugs:true},streams:2100000,pop:70,playlists:260,tiktok:33000,momentum:.74,gem:false,match:54,
+  why:"Explicit with <em>drug</em> references — filtered under clean-only and most brands."},
+ {id:12,title:"Slow Static",artist:"Bram Vespertine",genre:"Ambient",lang:"—",year:2022,instrumental:true,
+  literal:"",trueSubject:"",subtext:"",scenario:"",
+  themes:[],lyricMood:[],sentiment:0,confidence:0,divergent:false,
+  explicit:false,safety:{},streams:73000,pop:27,playlists:25,tiktok:300,momentum:.52,gem:true,match:56,
+  why:"<em>Instrumental</em> — ranks low for a meaning brief, but a clean, undiscovered bed."}
+];
+
+const TOPIC_REASON={drugs:"References drugs",alcohol:"References alcohol",violence:"Violent themes",sex:"Sexual content",profanity:"Profanity"};
+const BLOCK_OPTIONS=["Ros Tamar","Juno Reyes","Cass Holloway","Marlow Quinn"];
+const SAMPLES=[
+  "Upbeat-sounding songs that are secretly about heartbreak or loss",
+  "Songs about losing control — even if the lyrics never say it outright",
+  "Songs whose real subject is hidden in metaphor"
+];
+
+let CLEAN=true, GEMS=false, BLOCK=new Set(["Ros Tamar"]);
+
+const fmtNum=n=>n>=1e6?(n/1e6).toFixed(1).replace(/\.0$/,"")+"M":n>=1e3?Math.round(n/1e3)+"K":""+n;
+const cap=s=>s.charAt(0).toUpperCase()+s.slice(1);
+
+/* ---------- compliance ---------- */
+function complianceReason(t){
+  if(CLEAN&&(t.explicit||t.safety.profanity)) return "Explicit lyrics";
+  if(BLOCK.has(t.artist)) return `On blocklist · ${t.artist}`;
+  return null;
+}
+
+/* ---------- render ---------- */
+function render(){
+  const visible=[],removed=[];
+  TRACKS.forEach(t=>{ const r=complianceReason(t); r?removed.push({t,r}):visible.push(t); });
+  visible.sort((a,b)=>b.match-a.match);
+  if(GEMS) visible.sort((a,b)=>(b.gem-a.gem)||(b.match-a.match));
+  document.getElementById("cMatch").textContent=`${visible.length} matches`;
+  document.getElementById("cRemoved").textContent=`${removed.length} filtered`;
+  document.getElementById("rmBadge").textContent=removed.length;
+  const root=document.getElementById("results"); root.innerHTML="";
+  visible.forEach((t,i)=>root.appendChild(card(t,i)));
+  renderRemoved(removed); renderNogo();
+}
+
+function card(t,i){
+  const el=document.createElement("div"); el.className="card"; el.tabIndex=0; el.setAttribute("role","button");
+  el.onclick=()=>openDrawer(t);
+  el.onkeydown=e=>{ if(e.key==="Enter"||e.key===" "){e.preventDefault();openDrawer(t);} };
+  let meaning;
+  if(t.instrumental) meaning=`<span class="lit">Instrumental — no lyrics to interpret.</span>`;
+  else if(t.divergent) meaning=`Sounds like <span class="lit">${t.literal}</span> — but it's <em>really about ${t.trueSubject}</em>.`;
+  else meaning=`<em>About ${t.trueSubject}.</em> <span class="lit">${cap(t.subtext)}.</span>`;
+  const themeTxt=t.instrumental?"instrumental":(t.themes.slice(0,2).join(", ")+(t.lyricMood.length?` · ${t.lyricMood[0]}`:""));
+  const hasMarket=(t.streams||0)>0||(t.pop||0)>0;
+  const marketTxt=!hasMarket?"market data pending":(t.gem?"gem · low streams":(t.momentum>=.6?`↑ rising · ${fmtNum(t.streams)}`:`${fmtNum(t.streams)} streams`));
+  const flagged=Object.keys(t.safety).length>0;
+  el.innerHTML=`
+    <div class="rank">${String(i+1).padStart(2,"0")}</div>
+    <div>
+      <div class="ctitle">
+        <h3>${t.title}</h3><span class="artist">${t.artist}</span>
+        ${GEMS&&t.gem?`<span class="tagmini gem"><svg width="10" height="10" viewBox="0 0 24 24" fill="#181231"><path d="M12 2l3 6 7 .9-5 4.6 1.4 6.9L12 18l-6.4 3.4L7 15 2 10.4 9 9.5z"/></svg>Gem</span>`:""}
+        ${t.divergent?`<span class="tagmini subtext"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#181231" stroke-width="2.4"><path d="M4 16V8l4 3 4-6 4 7 4-2"/></svg>Hidden meaning</span>`:""}
+        ${flagged?`<span class="tagmini flagged">Flagged</span>`:""}
+      </div>
+      <div class="meta">${[t.genre,t.lang,t.year].filter(x=>x&&(''+x).trim()&&x!=='—').map(x=>`<span>${x}</span>`).join('<span class="dot">·</span>')}</div>
+      <p class="meaning">${meaning}</p>
+      ${t.why?`<p class="why">${t.why}</p>`:""}
+      <div class="tags">
+        <span class="tg lyric"><span class="k">Says</span> ${themeTxt}</span>
+        <span class="tg market"><span class="k">Sells</span> ${marketTxt}</span>
+        ${t.instrumental?"":`<span class="conf" title="Mistral's confidence in this reading"><span class="cbar"><span style="width:${Math.round(t.confidence*100)}%"></span></span>${Math.round(t.confidence*100)}%</span>`}
+      </div>
+    </div>
+    <div class="cright">
+      <div class="score">${t.match}<small>%</small></div>
+      <div class="mkt-mini">${(t.streams||0)>0?((t.momentum>=.6?'<span class="up">↑</span> ':"")+fmtNum(t.streams)):""}</div>
+    </div>`;
+  return el;
+}
+
+function renderRemoved(removed){
+  const root=document.getElementById("removedList");
+  if(!removed.length){ root.innerHTML=`<p class="rm-empty">Nothing filtered — all matches pass current rules. ✓</p>`; return; }
+  const g={}; removed.forEach(({t,r})=>{(g[r]??=[]).push(t);});
+  root.innerHTML=Object.entries(g).map(([r,list])=>`
+    <div class="rm-group"><div class="rm-head"><span>${r}</span><span class="cnt">${list.length}</span></div>
+    ${list.map(t=>`<div class="rm-item"><b>${t.title}</b> — ${t.artist}</div>`).join("")}</div>`).join("");
+}
+
+function renderNogo(){
+  const w=document.getElementById("nogoWrap"); w.innerHTML="";
+  BLOCK.forEach(name=>{
+    const s=document.createElement("span"); s.className="nogo";
+    s.innerHTML=`${name}<button aria-label="Remove ${name}"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>`;
+    s.querySelector("button").onclick=ev=>{ev.stopPropagation();BLOCK.delete(name);render();buildPop();};
+    w.appendChild(s);
+  });
+}
+
+/* ---------- drawer ---------- */
+function openDrawer(t){
+  const flagsAll=["profanity","drugs","alcohol","violence","sex"];
+  const flags=flagsAll.map(f=>{const bad=!!t.safety[f];return `<span class="sfx ${bad?'bad':'ok'}">${bad?'⚠':'✓'} ${cap(f)}</span>`;}).join("");
+  const hiddenFlag=(t.safety.drugs||t.safety.violence)&&t.divergent;
+  const spfy = t.spotify_id
+    ? `<div class="dblock"><div class="dlab"><span class="pip" style="background:#1DB954"></span>Listen</div>
+        <iframe style="border-radius:12px;border:var(--bd);display:block" src="https://open.spotify.com/embed/track/${t.spotify_id}" width="100%" height="80" frameborder="0" loading="lazy" allow="encrypted-media; clipboard-write"></iframe></div>`
+    : "";
+  const saysBlock=t.instrumental
+    ? `<p class="crow"><span class="cv">Instrumental — there are no lyrics to interpret, which removes the lyric layer entirely.</span></p>`
+    : `<div class="crow"><div class="ck">On the surface</div><div class="cv">${cap(t.literal)}.</div></div>
+       <div class="crow hero"><div class="ck">Really about</div><div class="cv">${cap(t.trueSubject)}.</div></div>
+       <div class="crow"><div class="ck">Subtext</div><div class="cv">${cap(t.subtext)}.</div></div>
+       <div class="crow"><div class="ck">Implied scene</div><div class="cv">${cap(t.scenario)}.</div></div>
+       <div class="crow"><div class="ck">Themes</div><div class="tags" style="margin-top:4px">
+         ${t.themes.map(x=>`<span class="tg lyric"><span class="k">Theme</span>${x}</span>`).join("")}
+         ${t.lyricMood.map(x=>`<span class="tg lyric"><span class="k">Mood</span>${cap(x)}</span>`).join("")}</div></div>
+       <div class="crow"><div class="ck">Confidence</div>
+         <div class="confbar-wrap"><span class="confbar"><span style="width:${Math.round(t.confidence*100)}%"></span></span><span class="confnum">${Math.round(t.confidence*100)}%</span></div></div>`;
+  document.getElementById("drawerBody").innerHTML=`
+    <div class="deyebrow">Lyric reading · ${t.match}% match</div>
+    <h2>${t.title}</h2>
+    <div class="dartist">${t.artist} · ${t.genre} · ${t.lang} · ${t.year}</div>
+    <div class="dblock"><div class="dlab"><span class="pip" style="background:var(--lyric)"></span>What it says</div>${saysBlock}</div>
+    <div class="dblock"><div class="dlab"><span class="pip" style="background:var(--flag)"></span>Compliance</div>
+      <div class="safety-row">${flags}</div>
+      ${hiddenFlag?`<p class="sfx-note">⚑ Flag inferred from <b>subtext</b>, not explicit words — caught because Mistral read the meaning, not just keywords.</p>`:""}</div>
+    <div class="dblock"><div class="dlab"><span class="pip" style="background:var(--market)"></span>What it sells</div>
+      <div class="stat-grid">
+        <div class="stat"><div class="sv">${fmtNum(t.streams)}</div><div class="sl">Spotify streams</div></div>
+        <div class="stat"><div class="sv">${t.pop}</div><div class="sl">Popularity</div></div>
+        <div class="stat"><div class="sv">${fmtNum(t.playlists)}</div><div class="sl">Playlist placements</div></div>
+        <div class="stat"><div class="sv">${Math.round(t.momentum*100)}%</div><div class="sl">Momentum</div></div>
+      </div></div>
+    ${spfy}
+    <div class="dcta"><button class="primary">Add to shortlist</button>${t.spotify_url?`<a class="ghost" href="${t.spotify_url}" target="_blank" rel="noopener" style="flex:1;display:flex;align-items:center;justify-content:center;text-decoration:none;color:inherit;padding:13px;border:var(--bd);border-radius:12px;box-shadow:var(--sh-sm);font-weight:700;font-size:13.5px">Play on Spotify ↗</a>`:`<button class="ghost">View lyrics</button>`}</div>`;
+  document.getElementById("scrim").classList.add("open");
+  document.getElementById("drawer").classList.add("open");
+}
+function closeDrawer(){document.getElementById("scrim").classList.remove("open");document.getElementById("drawer").classList.remove("open");}
+
+/* ---------- controls ---------- */
+function buildPop(){
+  const pop=document.getElementById("nogoPop");
+  const avail=BLOCK_OPTIONS.filter(n=>!BLOCK.has(n));
+  pop.innerHTML=avail.length?avail.map(n=>`<button data-n="${n}"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>${n}</button>`).join("")
+    :`<button disabled style="opacity:.5;cursor:default">All added</button>`;
+  pop.querySelectorAll("button[data-n]").forEach(b=>b.onclick=()=>{BLOCK.add(b.dataset.n);closePop();render();buildPop();});
+}
+function togglePop(){document.getElementById("nogoPop").classList.toggle("open");}
+function closePop(){document.getElementById("nogoPop").classList.remove("open");}
+document.addEventListener("click",e=>{ if(!e.target.closest(".addnogo")) closePop(); });
+document.addEventListener("keydown",e=>{ if(e.key==="Escape"){closePop();closeDrawer();} });
+
+function toggleClean(){CLEAN=!CLEAN;document.getElementById("tClean").setAttribute("aria-pressed",CLEAN);render();}
+function toggleGems(){GEMS=!GEMS;document.getElementById("tGems").setAttribute("aria-pressed",GEMS);render();}
+async function fetchSearch(){
+  const root=document.getElementById("results"); root.style.opacity=".4"; document.getElementById("cMatch").textContent="Searching…";
+  try{
+    const r=await fetch("/search",{method:"POST",headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({brief:document.getElementById("brief").value})});
+    if(!r.ok) throw new Error("server "+r.status);
+    const data=await r.json();
+    if(Array.isArray(data.results)) TRACKS=data.results;  // live data replaces the offline demo set
+    renderInterp(data);
+  }catch(e){ document.getElementById("interp").hidden=true; console.warn("search:",e.message); }
+  render(); root.style.opacity="1";
+}
+function runSearch(e){ if(e)e.preventDefault(); fetchSearch(); return false; }
+function loadSample(i){ document.getElementById("brief").value=SAMPLES[i]; if(i===0){GEMS=false;document.getElementById("tGems").setAttribute("aria-pressed",false);} runSearch(); }
+
+function renderInterp(d){
+  const el=document.getElementById("interp"); if(!el) return;
+  const g=d.genres||[], m=d.moods||[], th=d.themes||[];
+  if(!g.length&&!m.length&&!th.length){ el.hidden=true; return; }
+  const chip=(t,c,k)=>`<span class="ichip ${c}"><span class="ik">${k}</span>${t}</span>`;
+  el.innerHTML=`<span class="ilab">reading as</span>`
+    + g.map(x=>chip(x,"g","genre")).join("")
+    + m.map(x=>chip(x,"m","mood")).join("")
+    + th.map(x=>chip(x,"t","theme")).join("");
+  el.hidden=false;
+}
+function applyBudget(b){
+  if(!b) return;
+  const el=document.getElementById("growBudget"); if(el) el.textContent=`${b.used}/${b.cap} this mo`;
+  if(b.remaining<=0){
+    const btn=document.getElementById("growBtn"); if(btn) btn.disabled=true;
+    const m=document.getElementById("growMsg"); if(m && !m.textContent) m.textContent="monthly cap reached — resets next month";
+  }
+}
+async function refreshCount(){
+  try{
+    const d=await (await fetch("/health")).json();
+    if(typeof d.indexed==="number") document.getElementById("growCount").textContent=`${d.indexed} songs`;
+    applyBudget(d.budget);
+  }catch(e){}
+}
+let growPoll=null;
+async function growCatalog(){
+  const btn=document.getElementById("growBtn"); if(btn.disabled) return;
+  const prog=document.getElementById("growProg"), msg=document.getElementById("growMsg");
+  btn.disabled=true; prog.hidden=false; document.getElementById("growFill").style.width="0%";
+  msg.textContent="starting… enriching songs live — this can take a minute.";
+  try{
+    const res=await (await fetch("/grow",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({count:50})})).json();
+    if(res.started===false && !res.running) throw new Error("not started");
+  }catch(e){ msg.textContent="couldn't start — is the backend running?"; btn.disabled=false; prog.hidden=true; return; }
+  growPoll=setInterval(pollGrow,1500); pollGrow();
+}
+async function pollGrow(){
+  let d; try{ d=await (await fetch("/grow/status")).json(); }catch(e){ return; }
+  if(typeof d.total==="number") document.getElementById("growCount").textContent=`${d.total} songs`;
+  document.getElementById("growFill").style.width=(d.n?Math.round((d.i/d.n)*100):0)+"%";
+  document.getElementById("growMsg").textContent=d.message||"";
+  applyBudget(d.budget);
+  if(!d.running){
+    clearInterval(growPoll); growPoll=null;
+    document.getElementById("growBtn").disabled=false;
+    applyBudget(d.budget);
+    setTimeout(()=>{ document.getElementById("growProg").hidden=true; document.getElementById("growFill").style.width="0%"; },1400);
+    fetchSearch();   // surface the newly added songs
+  }
+}
+
+buildPop(); fetchSearch(); refreshCount();
+</script>
+</body>
+</html>
