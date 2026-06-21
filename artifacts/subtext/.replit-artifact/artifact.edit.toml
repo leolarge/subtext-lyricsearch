@@ -1,0 +1,12 @@
+kind = "web"
+previewPath = "/"
+title = "SUBTEXT"
+version = "1.0.0"
+
+[[services]]
+localPort = 5000
+name = "SUBTEXT"
+paths = ["/"]
+
+[services.development]
+run = "uvicorn main:app --host 0.0.0.0 --port 5000"
