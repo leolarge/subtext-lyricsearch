@@ -57,6 +57,10 @@
   .chip-s{font-size:13px;font-weight:600;color:var(--ink);background:var(--paper);border:var(--bd);padding:8px 14px;border-radius:999px;box-shadow:var(--sh-sm);transition:transform .12s,box-shadow .12s}
   .chip-s:hover{transform:translate(-1px,-1px);box-shadow:var(--sh)}
   .chip-s:active{transform:translate(1px,1px);box-shadow:none}
+  .show-more{display:flex;align-items:center;justify-content:center;margin:18px 0 0}
+  .show-more button{display:inline-flex;align-items:center;gap:8px;font-weight:700;font-size:14px;color:var(--ink);background:var(--paper);border:var(--bd);border-radius:999px;padding:12px 28px;box-shadow:var(--sh-sm);transition:transform .12s,box-shadow .12s}
+  .show-more button:hover{transform:translate(-1px,-1px);box-shadow:var(--sh)}
+  .show-more button:active{transform:translate(1px,1px);box-shadow:none}
   /* interpreted brief */
   .interp{display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin:14px 0 0}
   .interp .ilab{font-size:10.5px;letter-spacing:.13em;text-transform:uppercase;color:var(--ink-faint);font-weight:700}
@@ -239,12 +243,6 @@
       <button class="press gems" id="tGems" aria-pressed="false" onclick="toggleGems()">
         <span class="dot"><svg viewBox="0 0 24 24" fill="#181231"><path d="M12 2l3 6 7 .9-5 4.6 1.4 6.9L12 18l-6.4 3.4L7 15 2 10.4 9 9.5z"/></svg></span>Undiscovered gems</button>
     </div>
-    <span class="divider"></span>
-    <div class="ctl-group">
-      <span class="ctl-label">No-go</span>
-      <div class="nogo-wrap" id="nogoWrap"></div>
-      <div class="addnogo"><button onclick="togglePop()"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>Add</button><div class="pop" id="nogoPop"></div></div>
-    </div>
     <div class="counter">
       <span class="pillstat ok" id="cMatch">0 matches</span>
       <span class="pillstat rm" id="cRemoved">0 filtered</span>
@@ -386,7 +384,6 @@ let TRACKS=[
 ];
 
 const TOPIC_REASON={drugs:"References drugs",alcohol:"References alcohol",violence:"Violent themes",sex:"Sexual content",profanity:"Profanity"};
-const BLOCK_OPTIONS=["Ros Tamar","Juno Reyes","Cass Holloway","Marlow Quinn"];
 const SAMPLES=[
   "Upbeat-sounding songs that are secretly about heartbreak or loss",
   "Songs about grieving a father, or the unspoken distance between a father and son",
@@ -396,7 +393,7 @@ const SAMPLES=[
   "Wide-open, freedom-chasing songs for driving away from it all"
 ];
 
-let CLEAN=true, GEMS=false, BLOCK=new Set(["Ros Tamar"]);
+let CLEAN=true, GEMS=false, SHOW_ALL=false;
 
 const fmtNum=n=>n>=1e6?(n/1e6).toFixed(1).replace(/\.0$/,"")+"M":n>=1e3?Math.round(n/1e3)+"K":""+n;
 const cap=s=>s.charAt(0).toUpperCase()+s.slice(1);
@@ -404,11 +401,11 @@ const cap=s=>s.charAt(0).toUpperCase()+s.slice(1);
 /* ---------- compliance ---------- */
 function complianceReason(t){
   if(CLEAN&&(t.explicit||t.safety.profanity)) return "Explicit lyrics";
-  if(BLOCK.has(t.artist)) return `On blocklist · ${t.artist}`;
   return null;
 }
 
 /* ---------- render ---------- */
+const PAGE=20;
 function render(){
   const visible=[],removed=[];
   TRACKS.forEach(t=>{ const r=complianceReason(t); r?removed.push({t,r}):visible.push(t); });
@@ -418,8 +415,14 @@ function render(){
   document.getElementById("cRemoved").textContent=`${removed.length} filtered`;
   document.getElementById("rmBadge").textContent=removed.length;
   const root=document.getElementById("results"); root.innerHTML="";
-  visible.forEach((t,i)=>root.appendChild(card(t,i)));
-  renderRemoved(removed); renderNogo();
+  const shown=SHOW_ALL?visible:visible.slice(0,PAGE);
+  shown.forEach((t,i)=>root.appendChild(card(t,i)));
+  if(!SHOW_ALL&&visible.length>PAGE){
+    const more=document.createElement("div"); more.className="show-more";
+    more.innerHTML=`<button onclick="showAll()">Show all ${visible.length} results <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M6 9l6 6 6-6"/></svg></button>`;
+    root.appendChild(more);
+  }
+  renderRemoved(removed);
 }
 
 function card(t,i){
@@ -468,15 +471,6 @@ function renderRemoved(removed){
     ${list.map(t=>`<div class="rm-item"><b>${t.title}</b> — ${t.artist}</div>`).join("")}</div>`).join("");
 }
 
-function renderNogo(){
-  const w=document.getElementById("nogoWrap"); w.innerHTML="";
-  BLOCK.forEach(name=>{
-    const s=document.createElement("span"); s.className="nogo";
-    s.innerHTML=`${name}<button aria-label="Remove ${name}"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>`;
-    s.querySelector("button").onclick=ev=>{ev.stopPropagation();BLOCK.delete(name);render();buildPop();};
-    w.appendChild(s);
-  });
-}
 
 /* ---------- drawer ---------- */
 function openDrawer(t){
@@ -521,21 +515,13 @@ function openDrawer(t){
 function closeDrawer(){document.getElementById("scrim").classList.remove("open");document.getElementById("drawer").classList.remove("open");}
 
 /* ---------- controls ---------- */
-function buildPop(){
-  const pop=document.getElementById("nogoPop");
-  const avail=BLOCK_OPTIONS.filter(n=>!BLOCK.has(n));
-  pop.innerHTML=avail.length?avail.map(n=>`<button data-n="${n}"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>${n}</button>`).join("")
-    :`<button disabled style="opacity:.5;cursor:default">All added</button>`;
-  pop.querySelectorAll("button[data-n]").forEach(b=>b.onclick=()=>{BLOCK.add(b.dataset.n);closePop();render();buildPop();});
-}
-function togglePop(){document.getElementById("nogoPop").classList.toggle("open");}
-function closePop(){document.getElementById("nogoPop").classList.remove("open");}
-document.addEventListener("click",e=>{ if(!e.target.closest(".addnogo")) closePop(); });
-document.addEventListener("keydown",e=>{ if(e.key==="Escape"){closePop();closeDrawer();} });
+document.addEventListener("keydown",e=>{ if(e.key==="Escape"){closeDrawer();} });
 
+function showAll(){SHOW_ALL=true;render();}
 function toggleClean(){CLEAN=!CLEAN;document.getElementById("tClean").setAttribute("aria-pressed",CLEAN);render();}
 function toggleGems(){GEMS=!GEMS;document.getElementById("tGems").setAttribute("aria-pressed",GEMS);render();}
 async function fetchSearch(){
+  SHOW_ALL=false;
   const root=document.getElementById("results"); root.style.opacity=".4"; document.getElementById("cMatch").textContent="Searching…";
   try{
     const r=await fetch("/search",{method:"POST",headers:{"Content-Type":"application/json"},
@@ -591,7 +577,7 @@ async function pollGrow(){
   }
 }
 
-buildPop(); fetchSearch(); refreshCount();
+fetchSearch(); refreshCount();
 </script>
 </body>
 </html>
