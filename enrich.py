@@ -87,7 +87,7 @@ def build_one(row):
         "streams": market["streams"], "pop": market["popularity"],
         "playlists": market["playlists"], "tiktok": market["tiktok"],
         "momentum": round((market["popularity"] or 0) / 100, 2),
-        "gem": (market["streams"] or 0) < 250_000,
+        "gem": (0 < (market["popularity"] or 0) < 40) or (0 < (market["streams"] or 0) < 250_000),
         "match": 0,
     }
 
@@ -98,7 +98,7 @@ def backfill(rec):
     empty the first time (e.g. Songstats was still warming up)."""
     changed = False
     isrc = rec.get("isrc", "")
-    need_market = (rec.get("streams", 0) or 0) == 0 and (rec.get("pop", 0) or 0) == 0
+    need_market = (rec.get("streams", 0) or 0) == 0 or (rec.get("pop", 0) or 0) == 0
     need_spotify = not rec.get("spotify_url")
     raw_stats = songstats.track_stats(isrc) if isrc and (need_market or need_spotify) else {}
 
@@ -108,7 +108,7 @@ def backfill(rec):
             rec["streams"], rec["pop"] = m["streams"], m["popularity"]
             rec["playlists"], rec["tiktok"] = m["playlists"], m["tiktok"]
             rec["momentum"] = round((m["popularity"] or 0) / 100, 2)
-            rec["gem"] = (m["streams"] or 0) < 250_000
+            rec["gem"] = (0 < (m["popularity"] or 0) < 40) or (0 < (m["streams"] or 0) < 250_000)
             changed = True
     if need_spotify:
         sid, url = _spotify_for(isrc, raw_stats)

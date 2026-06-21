@@ -26,7 +26,8 @@ def _get(path, **params):
 
 
 def track_stats(isrc):
-    return _get("tracks/stats", isrc=isrc, source="spotify")
+    # no source filter — return the full cross-platform stats array
+    return _get("tracks/stats", isrc=isrc)
 
 
 def track_info(isrc):
@@ -34,36 +35,56 @@ def track_info(isrc):
     return _get("tracks/info", isrc=isrc)
 
 
-def _dig(obj, *keys):
-    """Return the first numeric value found anywhere for each of `keys`."""
-    found = {}
+def _num_in(d, *needles):
+    """Largest numeric value in dict `d` whose key contains any needle substring."""
+    best = 0
+    for k, v in (d or {}).items():
+        kl = str(k).lower()
+        if isinstance(v, (int, float)) and any(n in kl for n in needles):
+            best = max(best, int(v))
+    return best
 
-    def walk(o):
+
+def _stat_sources(raw):
+    """Collect every {source, data} stats block anywhere in a Songstats response."""
+    out = []
+
+    def find(o):
         if isinstance(o, dict):
-            for k, v in o.items():
-                if k in keys and isinstance(v, (int, float)) and k not in found:
-                    found[k] = v
-                walk(v)
+            if "source" in o and isinstance(o.get("data"), dict):
+                out.append(o)
+            for v in o.values():
+                find(v)
         elif isinstance(o, list):
             for v in o:
-                walk(v)
-    walk(obj)
-    return found
+                find(v)
+    find(raw)
+    return out
 
 
 def parse_market(raw):
-    """Map Songstats' response to the fields we use. Field names vary by plan,
-    so we search defensively. Confirm/adjust keys against the live docs."""
-    f = _dig(raw,
-             "streams_total", "spotify_streams_total",
-             "popularity_current", "spotify_popularity_current",
-             "playlists_total", "playlists_current",
-             "creator_reach_total")
+    """Headline market numbers from /tracks/stats.
+
+    Field names vary by source/plan, so we match by substring across every
+    {source, data} block, prefer Spotify, and fall back to whichever platform
+    reports a value. This stops streams/popularity from silently coming back 0.
+    """
+    by = {}
+    for s in _stat_sources(raw):
+        d = s.get("data", {})
+        by[str(s.get("source", "")).lower()] = {
+            "streams":    _num_in(d, "stream"),
+            "popularity": _num_in(d, "popularity", "rating"),
+            "playlists":  _num_in(d, "playlist"),
+            "reach":      _num_in(d, "creator_reach", "views", "shazam"),
+        }
+    sp = by.get("spotify", {})
+    pick = lambda key: sp.get(key) or max([v.get(key, 0) for v in by.values()] + [0])
     return {
-        "streams":    f.get("streams_total") or f.get("spotify_streams_total") or 0,
-        "popularity": f.get("popularity_current") or f.get("spotify_popularity_current") or 0,
-        "playlists":  f.get("playlists_total") or f.get("playlists_current") or 0,
-        "tiktok":     f.get("creator_reach_total") or 0,
+        "streams":    pick("streams"),
+        "popularity": pick("popularity"),
+        "playlists":  pick("playlists"),
+        "tiktok":     by.get("tiktok", {}).get("reach") or pick("reach"),
     }
 
 
