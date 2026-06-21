@@ -223,11 +223,12 @@
   <div class="samples">
     <span class="lab">Try</span>
     <button class="chip-s" onclick="loadSample(0)">Hidden heartbreak</button>
-    <button class="chip-s" onclick="loadSample(1)">Losing control</button>
-    <button class="chip-s" onclick="loadSample(2)">Meaning hidden in metaphor</button>
+    <button class="chip-s" onclick="loadSample(1)">Losing a father</button>
+    <button class="chip-s" onclick="loadSample(2)">Underdog comeback</button>
+    <button class="chip-s" onclick="loadSample(3)">Villain's entrance</button>
+    <button class="chip-s" onclick="loadSample(4)">Last goodbye</button>
+    <button class="chip-s" onclick="loadSample(5)">Windows-down road trip</button>
   </div>
-
-  <div class="interp" id="interp" hidden></div>
 
   <!-- CONTROLS -->
   <div class="controls">
@@ -388,8 +389,11 @@ const TOPIC_REASON={drugs:"References drugs",alcohol:"References alcohol",violen
 const BLOCK_OPTIONS=["Ros Tamar","Juno Reyes","Cass Holloway","Marlow Quinn"];
 const SAMPLES=[
   "Upbeat-sounding songs that are secretly about heartbreak or loss",
-  "Songs about losing control — even if the lyrics never say it outright",
-  "Songs whose real subject is hidden in metaphor"
+  "Songs about grieving a father, or the unspoken distance between a father and son",
+  "Triumphant songs for an underdog's training montage and hard-won victory",
+  "Songs that sound cool or seductive but are really about menace and moral collapse",
+  "Bittersweet songs for a final farewell that still aches with love",
+  "Wide-open, freedom-chasing songs for driving away from it all"
 ];
 
 let CLEAN=true, GEMS=false, BLOCK=new Set(["Ros Tamar"]);
@@ -539,24 +543,12 @@ async function fetchSearch(){
     if(!r.ok) throw new Error("server "+r.status);
     const data=await r.json();
     if(Array.isArray(data.results)) TRACKS=data.results;  // live data replaces the offline demo set
-    renderInterp(data);
-  }catch(e){ document.getElementById("interp").hidden=true; console.warn("search:",e.message); }
+  }catch(e){ console.warn("search:",e.message); }
   render(); root.style.opacity="1";
 }
 function runSearch(e){ if(e)e.preventDefault(); fetchSearch(); return false; }
 function loadSample(i){ document.getElementById("brief").value=SAMPLES[i]; if(i===0){GEMS=false;document.getElementById("tGems").setAttribute("aria-pressed",false);} runSearch(); }
 
-function renderInterp(d){
-  const el=document.getElementById("interp"); if(!el) return;
-  const g=d.genres||[], m=d.moods||[], th=d.themes||[];
-  if(!g.length&&!m.length&&!th.length){ el.hidden=true; return; }
-  const chip=(t,c,k)=>`<span class="ichip ${c}"><span class="ik">${k}</span>${t}</span>`;
-  el.innerHTML=`<span class="ilab">reading as</span>`
-    + g.map(x=>chip(x,"g","genre")).join("")
-    + m.map(x=>chip(x,"m","mood")).join("")
-    + th.map(x=>chip(x,"t","theme")).join("");
-  el.hidden=false;
-}
 function applyBudget(b){
   if(!b) return;
   const el=document.getElementById("growBudget"); if(el) el.textContent=`${b.used}/${b.cap} this mo`;
