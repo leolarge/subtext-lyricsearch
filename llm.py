@@ -24,17 +24,19 @@ client = Mistral(api_key=MISTRAL_API_KEY)
 # Full lyrics are sent by default — a song's true meaning can surface only in the final lines.
 # Set MAX_LYRIC_CHARS>0 only if you want to cap input tokens (trades away late-verse reveals).
 MODEL = os.environ.get("MISTRAL_MODEL", "mistral-large-latest")
+# Search compiles a simple brief, so it runs on a fast small model by default (big latency win).
+BRIEF_MODEL = os.environ.get("MISTRAL_SEARCH_MODEL", "mistral-small-latest")
 MAX_LYRIC_CHARS = int(os.environ.get("MAX_LYRIC_CHARS", "0"))
 
 _FLAGS = ["profanity", "drugs", "alcohol", "violence", "sex", "politics", "religion"]
 
 
-def _json(system, user, max_tokens=900, retries=4):
+def _json(system, user, max_tokens=900, retries=4, model=None):
     delay = 15
     for attempt in range(retries):
         try:
             resp = client.chat.complete(
-                model=MODEL,
+                model=model or MODEL,
                 messages=[{"role": "system", "content": system},
                           {"role": "user", "content": user}],
                 response_format={"type": "json_object"},
@@ -125,7 +127,9 @@ Return ONLY the JSON object."""
 
 def compile_brief(brief):
     try:
-        spec = _json(BRIEF_SYS, brief, max_tokens=350)
+        # fast small model + fail-fast: a rate-limited search returns instantly via the
+        # graceful fallback below instead of hanging on the 15s backoff.
+        spec = _json(BRIEF_SYS, brief, max_tokens=350, retries=1, model=BRIEF_MODEL)
     except Exception as e:
         print("  ! mistral compile_brief failed:", e)
         return {"target_themes": [], "target_moods": [], "target_genres": [],
