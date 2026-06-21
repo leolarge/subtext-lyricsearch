@@ -48,8 +48,17 @@ def build_one(row):
     if tr["commontrack_id"] and not instrumental:
         lyr = musixmatch.get_lyrics(tr["commontrack_id"])
 
-    # 2) context (Mistral)
-    ctx = llm.infer_context(tr["title"], tr["artist"], lyr["body"], instrumental)
+    # 1b) translate non-English lyrics so Mistral reads meaning, not a language barrier
+    lang = (lyr["language"] or "").lower()
+    analysis_text = lyr["body"]
+    translated_from = ""
+    if analysis_text and lang and lang != "en":
+        translated = musixmatch.get_translation(tr["commontrack_id"], "en")
+        if translated:
+            analysis_text, translated_from = translated, lang.upper()
+
+    # 2) context (Mistral) — runs on the English text when a translation was found
+    ctx = llm.infer_context(tr["title"], tr["artist"], analysis_text, instrumental)
 
     # 3) market + Spotify link (Songstats) — needs an ISRC
     raw_stats = songstats.track_stats(isrc) if isrc else {}
@@ -63,6 +72,7 @@ def build_one(row):
         "title": tr["title"], "artist": tr["artist"],
         "genre": tr["genre"] or "—",
         "lang": (lyr["language"] or "").upper() or "—",
+        "translatedFrom": translated_from,
         "year": tr["year"] or "",
         "instrumental": instrumental,
         "spotify_id": spotify_id, "spotify_url": spotify_url,

@@ -122,6 +122,7 @@
   .ctitle .artist{color:var(--ink-soft);font-size:14.5px;font-weight:600}
   .tagmini{font-size:10px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;border:var(--bd);border-radius:7px;padding:2px 7px;display:inline-flex;align-items:center;gap:4px;box-shadow:var(--sh-sm)}
   .tagmini.gem{background:var(--gold-bg)} .tagmini.subtext{background:var(--lyric-bg)} .tagmini.flagged{background:var(--flag-bg)}
+  .xlate{font-size:11px;font-weight:700;color:#6b4ea8;background:#f1ecfb;border:2px solid #1a1626;border-radius:999px;padding:2px 9px;margin-left:6px}
   .meta{display:flex;gap:9px;flex-wrap:wrap;margin:8px 0 10px;font-family:var(--mono);font-weight:500;font-size:11.5px;color:var(--ink-soft)}
   .meta .dot{color:var(--ink-faint)}
   .meaning{font-size:14.5px;color:#2c2748;margin:0 0 9px;max-width:64ch;line-height:1.55}
@@ -446,7 +447,7 @@ function card(t,i){
         ${t.divergent?`<span class="tagmini subtext"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#181231" stroke-width="2.4"><path d="M4 16V8l4 3 4-6 4 7 4-2"/></svg>Hidden meaning</span>`:""}
         ${flagged?`<span class="tagmini flagged">Flagged</span>`:""}
       </div>
-      <div class="meta">${[t.genre,t.lang,t.year].filter(x=>x&&(''+x).trim()&&x!=='—').map(x=>`<span>${x}</span>`).join('<span class="dot">·</span>')}</div>
+      <div class="meta">${[t.genre,t.lang,t.year].filter(x=>x&&(''+x).trim()&&x!=='—').map(x=>`<span>${x}</span>`).join('<span class="dot">·</span>')}${t.translatedFrom ? `<span class="xlate">↻ translated from ${t.translatedFrom}</span>` : ""}</div>
       <p class="meaning">${meaning}</p>
       ${t.why?`<p class="why">${t.why}</p>`:""}
       <div class="tags">
