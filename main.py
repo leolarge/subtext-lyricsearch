@@ -113,5 +113,10 @@ def add_status():
     return _add_state
 
 
+@app.get("/samples")
+def samples():
+    return {"themes": engine.top_themes(7)}
+
+
 # serve the frontend (static/index.html) at /
 app.mount("/", StaticFiles(directory="static", html=True), name="static")

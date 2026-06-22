@@ -45,6 +45,19 @@ BRAND_RULES = {   # mirrored in the frontend for instant toggles; kept here for 
 }
 
 
+def top_themes(n=7):
+    """Most common themes across the enriched catalog — used to build sample chips
+    that always reflect what's actually searchable."""
+    from collections import Counter
+    c = Counter()
+    for t in INDEX:
+        for th in (t.get("themes") or []):
+            s = str(th).strip().lower()
+            if s:
+                c[s] += 1
+    return [th for th, _ in c.most_common(n)]
+
+
 def reload():
     """Reload the index from disk and clear caches (called after the catalog grows)."""
     global INDEX, _CACHE, _MTIME

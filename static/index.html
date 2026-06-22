@@ -269,14 +269,8 @@
   </header>
 
   <!-- SAMPLES -->
-  <div class="samples">
+  <div class="samples" id="samplesRow">
     <span class="lab">Try</span>
-    <button class="chip-s" onclick="loadSample(0)">Hidden heartbreak</button>
-    <button class="chip-s" onclick="loadSample(1)">Losing a father</button>
-    <button class="chip-s" onclick="loadSample(2)">Underdog comeback</button>
-    <button class="chip-s" onclick="loadSample(3)">Villain's entrance</button>
-    <button class="chip-s" onclick="loadSample(4)">Last goodbye</button>
-    <button class="chip-s" onclick="loadSample(5)">Windows-down road trip</button>
   </div>
 
   <!-- CONTROLS -->
@@ -464,14 +458,6 @@ let TRACKS=[
 ];
 
 const TOPIC_REASON={drugs:"References drugs",alcohol:"References alcohol",violence:"Violent themes",sex:"Sexual content",profanity:"Profanity"};
-const SAMPLES=[
-  "Upbeat-sounding songs that are secretly about heartbreak or loss",
-  "Songs about grieving a father, or the unspoken distance between a father and son",
-  "Triumphant songs for an underdog's training montage and hard-won victory",
-  "Songs that sound cool or seductive but are really about menace and moral collapse",
-  "Bittersweet songs for a final farewell that still aches with love",
-  "Wide-open, freedom-chasing songs for driving away from it all"
-];
 
 let CLEAN=true, GEMS=false, SHOW_ALL=false;
 let SHORTLIST=new Map(); // id -> track object
@@ -724,7 +710,20 @@ async function fetchSearch(){
   render(); root.style.opacity="1";
 }
 function runSearch(e){ if(e)e.preventDefault(); fetchSearch(); return false; }
-function loadSample(i){ document.getElementById("brief").value=SAMPLES[i]; if(i===0){GEMS=false;document.getElementById("tGems").setAttribute("aria-pressed",false);} runSearch(); }
+async function loadSamples(){
+  let themes=[];
+  try{ themes=((await (await fetch("/samples")).json()).themes)||[]; }catch(e){}
+  if(!themes.length) return;
+  const capAll=s=>s.replace(/\b\w/g,c=>c.toUpperCase());
+  const row=document.getElementById("samplesRow");
+  row.innerHTML='<span class="lab">Try</span>'+themes.map(t=>
+    `<button class="chip-s" onclick='runSample(${JSON.stringify(t)})'>${capAll(t)}</button>`
+  ).join('');
+}
+function runSample(theme){
+  document.getElementById("brief").value="songs about "+theme;
+  fetchSearch();
+}
 
 function applyBudget(b){
   if(!b) return;
@@ -768,7 +767,7 @@ async function pollGrow(){
   }
 }
 
-fetchSearch(); refreshCount();
+fetchSearch(); refreshCount(); loadSamples();
 </script>
 </body>
 </html>
