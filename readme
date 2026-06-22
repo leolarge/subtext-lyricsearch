@@ -1,0 +1,55 @@
+# SUBTEXT
+
+**Find the meaning beneath the lyrics.**
+
+A song-search engine that finds what a track is actually about, even when the lyrics never say it outright. Built for the people who place music by meaning: sync supervisors and playlist curators.
+
+🔗 **Live app:** https://song-subtext--leolicensing.replit.app/
+
+---
+
+## What it is
+
+SUBTEXT searches songs by meaning instead of keywords. It reads the subtext, the real subject sitting under the words, and makes that searchable. Type a plain brief like "upbeat songs secretly about heartbreak" or "a villain's entrance" and you get tracks ranked by what they actually mean, with the market signal and streaming links to act on them.
+
+The scope is narrow on purpose. It's a searchable catalog where every song is analyzed for meaning, mood, brand-safety, and market momentum, aimed at two jobs: sync licensing and playlist curation.
+
+## The problem
+
+The people who place songs don't search by words. They search by meaning, and by what's safe to use. A track that sounds like a love song might really be about addiction. A clean lyric sheet can still hide a theme no brand wants near its campaign. Keyword search can't tell the difference. SUBTEXT can.
+
+## What it does
+
+- Search by meaning, with natural-language briefs ranked across theme, mood, and hidden subject.
+- Flag the gap between surface and subtext: songs where the lyrics say one thing but mean another ("sounds like X, but it's really about Y").
+- Filter for brand-safety on actual themes (addiction, violence, self-harm), explicit flags, and artist/label blocklists. Profanity filtering alone misses most of this.
+- Handle other languages by translating non-English lyrics before analysis, so the catalog isn't English-only.
+- Attach a market signal to every result: streaming momentum, popularity, playlist reach, and direct links to Spotify, Apple Music, YouTube, and others.
+- Surface low-stream tracks that still fit the brief.
+
+## How it works
+
+Three data and AI sources, joined on each track's ISRC:
+
+- **Musixmatch Pro API** for full synced lyrics, explicit flags, genre, ISRC, and translation. This is the base layer everything else hangs off.
+- **Mistral** reads every lyric for true subject, hidden meaning, mood, scenario, and brand-safety flags, then compiles each search into structured themes and moods.
+- **Songstats** for streams, popularity, playlist reach, and cross-platform listening links.
+
+## Who it's for
+
+- **Sync licensing:** finding the right song for a scene by meaning and by brand-safety, not just by keyword.
+- **DSP playlist curation:** building mood- and theme-driven playlists, including the tracks most people would miss.
+
+## Help grow the catalog
+
+Every track that gets scanned makes the next search a little better. You can scan more tracks right in the app to expand the database, and it improves for everyone as it grows. If you want to help build it out, contribute a catalog, partner up, or just talk shop, reach me directly at **music@leonetzband.com**.
+
+## What's next
+
+- **Cyanite integration:** a sonic AI layer (mood, energy, instrumentation) to match on feel as well as meaning. That also unlocks contrast search, where you find tracks whose lyric mood and musical mood deliberately clash.
+- **Live preview:** a playable clip for every result.
+- Deeper market and label signals, plus publisher and rights metadata for clearance.
+
+## Contact
+
+Leon, music@leonetzband.com
