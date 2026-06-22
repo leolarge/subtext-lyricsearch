@@ -36,12 +36,17 @@ def track_info(isrc):
 
 
 def _num_in(d, *needles):
-    """Largest numeric value in dict `d` whose key contains any needle substring."""
+    """Largest numeric value in dict `d` whose key matches a needle. Coerces numeric
+    STRINGS too — Songstats returns some values as strings, e.g. streams_total '76363.0'."""
     best = 0
     for k, v in (d or {}).items():
         kl = str(k).lower()
-        if isinstance(v, (int, float)) and any(n in kl for n in needles):
-            best = max(best, int(v))
+        if not any(n in kl for n in needles):
+            continue
+        try:
+            best = max(best, int(float(v)))
+        except (TypeError, ValueError):
+            continue
     return best
 
 
