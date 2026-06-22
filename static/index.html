@@ -204,6 +204,23 @@
   .footnote{margin-top:32px;text-align:center;font-size:12px;color:var(--ink-soft);font-weight:500}
   .footnote b{color:var(--ink);font-weight:700}
   @media (prefers-reduced-motion: reduce){*{transition:none!important}}
+
+  /* shortlist */
+  .star-btn{display:grid;place-items:center;width:32px;height:32px;border-radius:10px;background:var(--paper);border:var(--bd);box-shadow:var(--sh-sm);color:var(--ink-faint);transition:transform .12s,background .12s,color .12s;flex-shrink:0}
+  .star-btn:hover{transform:translate(-1px,-1px);box-shadow:var(--sh);color:var(--ink)}
+  .star-btn:active{transform:translate(1px,1px);box-shadow:none}
+  .star-btn.starred{background:var(--gold);color:var(--ink)}
+  .sl-empty{font-size:12.5px;color:var(--ink-soft);font-weight:500}
+  .sl-item{display:flex;align-items:center;gap:9px;padding:8px 0;border-top:2px solid var(--cream);font-size:13px;font-weight:600}
+  .sl-item:first-child{border-top:none}
+  .sl-item b{font-weight:700;color:var(--ink)}
+  .sl-item span{color:var(--ink-soft);font-size:12px;font-weight:500;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .sl-rm{display:grid;place-items:center;width:22px;height:22px;border-radius:7px;background:var(--cream);border:var(--bd);color:var(--ink-soft);flex-shrink:0}
+  .sl-rm:hover{background:var(--flag-bg);color:var(--flag)}
+  .copy-btn{margin-top:13px;width:100%;display:flex;align-items:center;justify-content:center;gap:8px;font-weight:700;font-size:13px;color:var(--ink);background:var(--teal);border:var(--bd);border-radius:10px;padding:10px;box-shadow:var(--sh-sm);transition:transform .12s}
+  .copy-btn:hover{transform:translate(-1px,-1px);box-shadow:var(--sh)}
+  .copy-btn:active{transform:translate(1px,1px);box-shadow:none}
+  .copy-btn.copied{background:var(--go-bg)}
 </style>
 </head>
 <body>
@@ -265,6 +282,11 @@
   <div class="layout">
     <main><div class="results" id="results"></div></main>
     <aside class="rail">
+      <section class="panel" id="slPanel">
+        <h4><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#181231" stroke-width="2.2" stroke-linejoin="round"><path d="M12 2l3 6 7 .9-5 4.6 1.4 6.9L12 18l-6.4 3.4L7 15 2 10.4 9 9.5z"/></svg>Shortlist<span class="badge-n" id="slBadge" style="background:var(--teal)">0</span></h4>
+        <p class="p-sub">Star songs to build a list, then copy it.</p>
+        <div id="slList"><p class="sl-empty">No songs starred yet — click ☆ on any card.</p></div>
+      </section>
       <section class="panel">
         <h4><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#181231" stroke-width="2.2" stroke-linejoin="round"><path d="M3 4h18l-7 8v7l-4 2v-9z"/></svg>Filtered out<span class="badge-n" id="rmBadge">0</span></h4>
         <p class="p-sub">Every exclusion shows its reason.</p>
@@ -395,6 +417,7 @@ const SAMPLES=[
 ];
 
 let CLEAN=true, GEMS=false, SHOW_ALL=false;
+let SHORTLIST=new Map(); // id -> track object
 
 const fmtNum=n=>n>=1e6?(n/1e6).toFixed(1).replace(/\.0$/,"")+"M":n>=1e3?Math.round(n/1e3)+"K":""+n;
 const cap=s=>s.charAt(0).toUpperCase()+s.slice(1);
@@ -459,6 +482,7 @@ function card(t,i){
     <div class="cright">
       <div class="score">${t.match}<small>%</small></div>
       <div class="mkt-mini">${(t.streams||0)>0?((t.momentum>=.6?'<span class="up">↑</span> ':"")+fmtNum(t.streams)):""}</div>
+      <button class="star-btn${SHORTLIST.has(t.id)?` starred`:``}" title="Add to shortlist" onclick="event.stopPropagation();toggleStar('${t.id}',this)" aria-label="Add to shortlist"><svg width="14" height="14" viewBox="0 0 24 24" fill="${SHORTLIST.has(t.id)?`#181231`:`none`}" stroke="#181231" stroke-width="2.4" stroke-linejoin="round"><path d="M12 2l3 6 7 .9-5 4.6 1.4 6.9L12 18l-6.4 3.4L7 15 2 10.4 9 9.5z"/></svg></button>
     </div>`;
   return el;
 }
@@ -517,6 +541,57 @@ function closeDrawer(){document.getElementById("scrim").classList.remove("open")
 
 /* ---------- controls ---------- */
 document.addEventListener("keydown",e=>{ if(e.key==="Escape"){closeDrawer();} });
+
+/* ---------- shortlist ---------- */
+function toggleStar(id, btn){
+  const t=TRACKS.find(x=>String(x.id)===String(id));
+  if(!t) return;
+  if(SHORTLIST.has(id)){ SHORTLIST.delete(id); }
+  else { SHORTLIST.set(id, t); }
+  const starred=SHORTLIST.has(id);
+  btn.classList.toggle("starred", starred);
+  btn.innerHTML=`<svg width="14" height="14" viewBox="0 0 24 24" fill="${starred?"#181231":"none"}" stroke="#181231" stroke-width="2.4" stroke-linejoin="round"><path d="M12 2l3 6 7 .9-5 4.6 1.4 6.9L12 18l-6.4 3.4L7 15 2 10.4 9 9.5z"/></svg>`;
+  renderShortlist();
+}
+function renderShortlist(){
+  const root=document.getElementById("slList");
+  const badge=document.getElementById("slBadge");
+  badge.textContent=SHORTLIST.size;
+  if(!SHORTLIST.size){
+    root.innerHTML=`<p class="sl-empty">No songs starred yet — click ☆ on any card.</p>`;
+    return;
+  }
+  root.innerHTML=[...SHORTLIST.values()].map(t=>`
+    <div class="sl-item">
+      <div style="flex:1;min-width:0">
+        <div style="font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${t.title}</div>
+        <div style="font-size:11.5px;color:var(--ink-soft);font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${t.artist}</div>
+      </div>
+      <button class="sl-rm" onclick="removeFromShortlist('${t.id}')" title="Remove" aria-label="Remove ${t.title}"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+    </div>`).join("")+
+    `<button class="copy-btn" id="copyBtn" onclick="copyShortlist()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>Copy list</button>`;
+}
+function removeFromShortlist(id){
+  SHORTLIST.delete(id);
+  // un-star the card if it's visible
+  document.querySelectorAll(".star-btn.starred").forEach(btn=>{
+    if(btn.getAttribute("onclick")&&btn.getAttribute("onclick").includes(`'${id}'`)){
+      btn.classList.remove("starred");
+      btn.innerHTML=`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#181231" stroke-width="2.4" stroke-linejoin="round"><path d="M12 2l3 6 7 .9-5 4.6 1.4 6.9L12 18l-6.4 3.4L7 15 2 10.4 9 9.5z"/></svg>`;
+    }
+  });
+  renderShortlist();
+}
+function copyShortlist(){
+  const lines=[...SHORTLIST.values()].map(t=>{
+    const sp=t.spotify_url?`\n  Spotify: ${t.spotify_url}`:"";
+    return `${t.title} — ${t.artist}${sp}`;
+  });
+  navigator.clipboard.writeText(lines.join("\n\n")).then(()=>{
+    const btn=document.getElementById("copyBtn");
+    if(btn){ btn.textContent="✓ Copied!"; btn.classList.add("copied"); setTimeout(()=>{ btn.innerHTML=`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>Copy list`; btn.classList.remove("copied"); },2000); }
+  });
+}
 
 function showAll(){SHOW_ALL=true;render();}
 function toggleClean(){CLEAN=!CLEAN;document.getElementById("tClean").setAttribute("aria-pressed",CLEAN);render();}
