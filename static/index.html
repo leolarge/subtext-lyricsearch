@@ -209,6 +209,11 @@
   .addbtn{display:inline-flex;align-items:center;gap:7px;font-weight:700;font-size:13.5px;color:var(--ink);background:var(--paper);border:var(--bd);border-radius:999px;padding:9px 16px;box-shadow:var(--sh-sm);transition:transform .12s}
   .addbtn:hover{transform:translate(-1px,-1px);box-shadow:var(--sh)}
   .addbtn:active{transform:translate(1px,1px);box-shadow:none}
+  .sync-btn{display:inline-flex;align-items:center;gap:6px;font-weight:700;font-size:12px;color:var(--ink);background:var(--cream);border:var(--bd);border-radius:999px;padding:6px 12px;box-shadow:var(--sh-sm);transition:transform .12s,background .12s;cursor:pointer}
+  .sync-btn:hover{transform:translate(-1px,-1px);box-shadow:var(--sh);background:var(--paper)}
+  .sync-btn:active{transform:translate(1px,1px);box-shadow:none}
+  .sync-btn.spin svg{animation:spin .6s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
 
   /* add-song modal */
   .add-modal{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) scale(.94);opacity:0;pointer-events:none;z-index:70;width:min(460px,94vw);background:var(--paper);border:var(--bd);border-radius:var(--r);box-shadow:0 8px 40px rgba(24,18,49,.22);padding:26px;transition:transform .22s cubic-bezier(.34,1.4,.64,1),opacity .18s}
@@ -285,6 +290,10 @@
     <div class="counter">
       <span class="pillstat ok" id="cMatch">0 matches</span>
       <span class="pillstat rm" id="cRemoved">0 filtered</span>
+      <button class="sync-btn" id="syncBtn" onclick="syncCatalog()" title="Refresh from live index" aria-label="Refresh catalog">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M1 4v6h6M23 20v-6h-6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
+        Sync
+      </button>
     </div>
   </div>
 
@@ -363,104 +372,37 @@
 </aside>
 
 <script>
-/* ---------- mock catalog (fictional); fields mirror Mistral + Songstats output ---------- */
-let TRACKS=[
- {id:1,title:"Undertow",artist:"Mara Quill",genre:"Alternative",lang:"EN",year:2024,instrumental:false,
-  literal:"someone driving away from home at night, refusing to look back",
-  trueSubject:"losing control during an emotional breakdown",
-  subtext:"the night drive is dissociation — motion standing in for a mind coming apart",
-  scenario:"alone in a car on an empty pre-dawn highway",
-  themes:["losing control","grief"],lyricMood:["defiant","mournful"],sentiment:-.45,confidence:.84,divergent:false,
-  explicit:false,safety:{},streams:182000,pop:38,playlists:64,tiktok:1200,momentum:.66,gem:true,match:96,
-  why:"Theme of <em>losing control</em> is explicit in the read; an undiscovered track."},
- {id:2,title:"Neon Saints",artist:"Cass Holloway",genre:"Pop",lang:"EN",year:2023,instrumental:false,
-  literal:"a euphoric night out dancing with friends",
-  trueSubject:"numbing a fresh heartbreak",
-  subtext:"the celebration is avoidance — the brighter it gets, the more it's hiding",
-  scenario:"a crowded club at 2am, smiling too hard",
-  themes:["heartbreak","avoidance"],lyricMood:["forced joy","melancholy"],sentiment:-.4,confidence:.78,divergent:true,
-  explicit:false,safety:{},streams:1300000,pop:64,playlists:210,tiktok:24000,momentum:.61,gem:false,match:90,
-  why:"Reads as a party song on the surface — <em>subtext is heartbreak</em>."},
- {id:3,title:"Honeythief",artist:"Sable Wren",genre:"R&B",lang:"EN",year:2024,instrumental:false,
-  literal:"an intoxicating love song about craving someone",
-  trueSubject:"substance dependence — the 'lover' is the addiction",
-  subtext:"every line about wanting, getting, and relapsing maps onto using",
-  scenario:"the loop of craving and regret",
-  themes:["addiction","dependence","craving"],lyricMood:["seductive","desperate"],sentiment:-.2,confidence:.71,divergent:true,
-  explicit:false,safety:{drugs:true},streams:520000,pop:50,playlists:130,tiktok:8000,momentum:.7,gem:false,match:84,
-  why:"Sounds like a love song — Mistral reads the subtext as <em>addiction</em> and flags it. A keyword filter would miss this."},
- {id:4,title:"Paper Skin",artist:"Edie Sorrel",genre:"Singer-songwriter",lang:"EN",year:2024,instrumental:false,
-  literal:"unsent letters to someone who's gone",
-  trueSubject:"grief after a death",
-  subtext:"stated plainly — no disguise here",
-  scenario:"writing alone at a kitchen table",
-  themes:["loss","grief"],lyricMood:["mournful"],sentiment:-.6,confidence:.9,divergent:false,
-  explicit:false,safety:{},streams:410000,pop:46,playlists:95,tiktok:3000,momentum:.44,gem:false,match:82,
-  why:"Overt <em>grief &amp; loss</em>; very high confidence, no ambiguity."},
- {id:5,title:"Bar Lights",artist:"Marlow Quinn",genre:"Country",lang:"EN",year:2023,instrumental:false,
-  literal:"one more round at the bar with the regulars",
-  trueSubject:"loneliness and avoiding going home",
-  subtext:"the drinking is a way to not be alone with himself",
-  scenario:"last call, nursing one more",
-  themes:["loneliness","drinking","nightlife"],lyricMood:["wry","lonely"],sentiment:-.1,confidence:.69,divergent:true,
-  explicit:false,safety:{alcohol:true},streams:880000,pop:58,playlists:150,tiktok:6000,momentum:.5,gem:false,match:76,
-  why:"Clean of profanity, but references <em>drinking</em> — brand rules may apply; subtext is loneliness."},
- {id:6,title:"Static Bloom",artist:"Vela Mott",genre:"Alternative",lang:"EN",year:2024,instrumental:false,
-  literal:"a calm description of an ordinary day",
-  trueSubject:"masked anxiety and dread",
-  subtext:"the flat, calm surface is barely containing panic",
-  scenario:"going through the motions while unraveling",
-  themes:["anxiety","losing control"],lyricMood:["uneasy"],sentiment:-.3,confidence:.7,divergent:true,
-  explicit:false,safety:{},streams:540000,pop:49,playlists:88,tiktok:4000,momentum:.4,gem:false,match:83,
-  why:"Calm on the surface; the <em>subtext is anxiety &amp; losing control</em>."},
- {id:7,title:"Lantern",artist:"The Hollow Coast",genre:"Folk",lang:"EN",year:2024,instrumental:false,
-  literal:"keeping a single light on through the night",
-  trueSubject:"resilience and quiet hope after hardship",
-  subtext:"the lantern is endurance itself",
-  scenario:"the last hour before dawn",
-  themes:["hope","resilience"],lyricMood:["tender"],sentiment:.4,confidence:.82,divergent:false,
-  explicit:false,safety:{},streams:64000,pop:25,playlists:30,tiktok:900,momentum:.55,gem:true,match:80,
-  why:"<em>Resilience &amp; hope</em>; a low-stream gem if you want something fresh."},
- {id:8,title:"Wax & Wane",artist:"Wren & the Tide",genre:"Indie",lang:"EN",year:2023,instrumental:false,
-  literal:"watching the moon, thinking of someone far away",
-  trueSubject:"longing for a relationship that's fading",
-  subtext:"the waxing and waning mirrors a love losing its pull",
-  scenario:"a window at night, phone face-down",
-  themes:["longing"],lyricMood:["wistful"],sentiment:.1,confidence:.76,divergent:false,
-  explicit:false,safety:{},streams:230000,pop:42,playlists:70,tiktok:2000,momentum:.48,gem:false,match:78,
-  why:"Wistful <em>longing</em> — a gentle thematic fit."},
- {id:9,title:"Glass Engine",artist:"North Atlas",genre:"Electronic",lang:"—",year:2023,instrumental:true,
-  literal:"",trueSubject:"",subtext:"",scenario:"",
-  themes:[],lyricMood:[],sentiment:0,confidence:0,divergent:false,
-  explicit:false,safety:{},streams:91000,pop:31,playlists:40,tiktok:500,momentum:.58,gem:true,match:60,
-  why:"<em>Instrumental</em> — no lyrics to interpret, so it ranks low for a meaning-based brief."},
- {id:10,title:"Hold Your Fire",artist:"Ros Tamar",genre:"Hip-hop",lang:"EN",year:2022,instrumental:false,
-  literal:"a confrontation that escalates",
-  trueSubject:"revenge and retaliation",
-  subtext:"no metaphor — it's literal aggression",
-  scenario:"a standoff that won't de-escalate",
-  themes:["violence","revenge"],lyricMood:["aggressive"],sentiment:-.4,confidence:.86,divergent:false,
-  explicit:true,safety:{profanity:true,violence:true},streams:4200000,pop:78,playlists:300,tiktok:40000,momentum:.6,gem:false,match:58,
-  why:"Explicit and violent — included so you can see the gate work."},
- {id:11,title:"Gold Teeth",artist:"Juno Reyes",genre:"Hip-hop",lang:"EN",year:2024,instrumental:false,
-  literal:"flexing wealth and status",
-  trueSubject:"surface flex, with open drug references",
-  subtext:"little hidden meaning — it's mostly what it says",
-  scenario:"a victory-lap braggadocio track",
-  themes:["money","drugs"],lyricMood:["brash"],sentiment:.1,confidence:.8,divergent:false,
-  explicit:true,safety:{profanity:true,drugs:true},streams:2100000,pop:70,playlists:260,tiktok:33000,momentum:.74,gem:false,match:54,
-  why:"Explicit with <em>drug</em> references — filtered under clean-only and most brands."},
- {id:12,title:"Slow Static",artist:"Bram Vespertine",genre:"Ambient",lang:"—",year:2022,instrumental:true,
-  literal:"",trueSubject:"",subtext:"",scenario:"",
-  themes:[],lyricMood:[],sentiment:0,confidence:0,divergent:false,
-  explicit:false,safety:{},streams:73000,pop:27,playlists:25,tiktok:300,momentum:.52,gem:true,match:56,
-  why:"<em>Instrumental</em> — ranks low for a meaning brief, but a clean, undiscovered bed."}
-];
+/* ---------- catalog: loaded live from the enriched index so it never resets ---------- */
+let TRACKS=[];
+async function loadIndex(){
+  try{
+    const r=await fetch("/search",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({brief:""})});
+    if(!r.ok) throw new Error("server "+r.status);
+    const d=await r.json();
+    return Array.isArray(d.results)?d.results:[];
+  }catch(e){ console.warn("loadIndex:",e.message); return []; }
+}
 
 const TOPIC_REASON={drugs:"References drugs",alcohol:"References alcohol",violence:"Violent themes",sex:"Sexual content",profanity:"Profanity"};
 
 let CLEAN=true, GEMS=false, SHOW_ALL=false;
 let SHORTLIST=new Map(); // id -> track object
+
+function saveShortlist(){
+  const ids=[...SHORTLIST.keys()];
+  localStorage.setItem("subtext_shortlist",JSON.stringify(ids));
+}
+function restoreShortlist(){
+  try{
+    const ids=JSON.parse(localStorage.getItem("subtext_shortlist")||"[]");
+    if(Array.isArray(ids)){
+      ids.forEach(id=>{
+        const t=TRACKS.find(x=>String(x.id)===String(id));
+        if(t) SHORTLIST.set(id,t);
+      });
+    }
+  }catch(e){}
+}
 
 const fmtNum=n=>n>=1e6?(n/1e6).toFixed(1).replace(/\.0$/,"")+"M":n>=1e3?Math.round(n/1e3)+"K":""+n;
 const cap=s=>s.charAt(0).toUpperCase()+s.slice(1);
@@ -576,7 +518,7 @@ function openDrawer(t){
         <div class="stat"><div class="sv">${Math.round(t.momentum*100)}%</div><div class="sl">Momentum</div></div>
       </div></div>
     ${spfy}
-    <div class="dcta"><button class="primary">Add to shortlist</button>${t.spotify_url?`<a class="ghost" href="${t.spotify_url}" target="_blank" rel="noopener" style="flex:1;display:flex;align-items:center;justify-content:center;text-decoration:none;color:inherit;padding:13px;border:var(--bd);border-radius:12px;box-shadow:var(--sh-sm);font-weight:700;font-size:13.5px">Play on Spotify ↗</a>`:`<button class="ghost">View lyrics</button>`}</div>`;
+    <div class="dcta">${t.spotify_url?`<a class="ghost" href="${t.spotify_url}" target="_blank" rel="noopener" style="flex:1;display:flex;align-items:center;justify-content:center;text-decoration:none;color:inherit;padding:13px;border:var(--bd);border-radius:12px;box-shadow:var(--sh-sm);font-weight:700;font-size:13.5px">Play on Spotify ↗</a>`:`<button class="ghost">View lyrics</button>`}</div>`;
   document.getElementById("scrim").classList.add("open");
   document.getElementById("drawer").classList.add("open");
 }
@@ -653,6 +595,21 @@ function toggleStar(id, btn){
   btn.classList.toggle("starred", starred);
   btn.innerHTML=`<svg width="14" height="14" viewBox="0 0 24 24" fill="${starred?"#181231":"none"}" stroke="#181231" stroke-width="2.4" stroke-linejoin="round"><path d="M12 2l3 6 7 .9-5 4.6 1.4 6.9L12 18l-6.4 3.4L7 15 2 10.4 9 9.5z"/></svg>`;
   renderShortlist();
+  saveShortlist();
+}
+async function syncCatalog(){
+  const btn=document.getElementById("syncBtn"); btn.classList.add("spin");
+  const oldIds=[...SHORTLIST.keys()];
+  TRACKS=await loadIndex();
+  SHORTLIST.clear();
+  oldIds.forEach(id=>{
+    const t=TRACKS.find(x=>String(x.id)===String(id));
+    if(t) SHORTLIST.set(id,t);
+  });
+  renderShortlist();
+  render();                  // re-render results so new songs appear
+  refreshCount(); loadSamples(); // update count and sample chips
+  btn.classList.remove("spin");
 }
 function renderShortlist(){
   const root=document.getElementById("slList");
@@ -684,6 +641,7 @@ function removeFromShortlist(id){
   renderShortlist();
 }
 function copyShortlist(){
+  saveShortlist();
   const lines=[...SHORTLIST.values()].map(t=>{
     const sp=t.spotify_url?`\n  Spotify: ${t.spotify_url}`:"";
     return `${t.title} — ${t.artist}${sp}`;
@@ -767,7 +725,15 @@ async function pollGrow(){
   }
 }
 
-fetchSearch(); refreshCount(); loadSamples();
+async function init(){
+  TRACKS=await loadIndex();
+  restoreShortlist();
+  renderShortlist();
+  fetchSearch();
+  refreshCount();
+  loadSamples();
+}
+init();
 </script>
 </body>
 </html>
