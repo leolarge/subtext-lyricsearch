@@ -205,6 +205,33 @@
   .footnote b{color:var(--ink);font-weight:700}
   @media (prefers-reduced-motion: reduce){*{transition:none!important}}
 
+  /* add-song button */
+  .addbtn{display:inline-flex;align-items:center;gap:7px;font-weight:700;font-size:13.5px;color:var(--ink);background:var(--paper);border:var(--bd);border-radius:999px;padding:9px 16px;box-shadow:var(--sh-sm);transition:transform .12s}
+  .addbtn:hover{transform:translate(-1px,-1px);box-shadow:var(--sh)}
+  .addbtn:active{transform:translate(1px,1px);box-shadow:none}
+
+  /* add-song modal */
+  .add-modal{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) scale(.94);opacity:0;pointer-events:none;z-index:70;width:min(460px,94vw);background:var(--paper);border:var(--bd);border-radius:var(--r);box-shadow:0 8px 40px rgba(24,18,49,.22);padding:26px;transition:transform .22s cubic-bezier(.34,1.4,.64,1),opacity .18s}
+  .add-modal.open{transform:translate(-50%,-50%) scale(1);opacity:1;pointer-events:auto}
+  .add-modal-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
+  .add-modal-head h3{font-family:var(--disp);font-size:19px;font-weight:700;margin:0}
+  .add-sub{font-size:12.5px;color:var(--ink-soft);font-weight:500;margin:0 0 20px;line-height:1.45}
+  .add-label{display:flex;flex-direction:column;gap:6px;font-size:12px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-soft);margin-bottom:14px}
+  .add-input{font-family:var(--sans);font-size:15px;font-weight:600;color:var(--ink);background:var(--cream);border:var(--bd);border-radius:10px;padding:11px 13px;outline:none;transition:border-color .12s}
+  .add-input:focus{border-color:var(--teal);background:var(--paper)}
+  .add-submit{margin-top:4px;width:100%;display:flex;align-items:center;justify-content:center;gap:8px;font-weight:700;font-size:14px;color:var(--ink);background:var(--teal);border:var(--bd);border-radius:11px;padding:13px;box-shadow:var(--sh-sm);transition:transform .12s}
+  .add-submit:hover:not(:disabled){transform:translate(-1px,-1px);box-shadow:var(--sh)}
+  .add-submit:active:not(:disabled){transform:translate(1px,1px);box-shadow:none}
+  .add-submit:disabled{opacity:.55;cursor:progress}
+  .add-status{display:flex;align-items:center;gap:11px;margin-top:16px;font-size:13.5px;font-weight:600;color:var(--ink-soft)}
+  .add-spinner{width:18px;height:18px;border:3px solid var(--cream);border-top-color:var(--teal);border-radius:50%;animation:spin .7s linear infinite;flex-shrink:0}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .add-result{margin-top:16px;background:var(--lyric-bg);border:var(--bd);border-radius:12px;padding:14px}
+  .add-result .ar-title{font-family:var(--disp);font-size:17px;font-weight:700}
+  .add-result .ar-artist{color:var(--ink-soft);font-size:13px;font-weight:600;margin-bottom:8px}
+  .add-result .ar-sub{font-size:13.5px;color:#2c2748;line-height:1.5}
+  .add-result .ar-ok{display:inline-flex;align-items:center;gap:6px;margin-top:10px;font-size:12px;font-weight:700;color:#1a7a4a;background:var(--go-bg);border:var(--bd);border-radius:8px;padding:4px 10px}
+
   /* shortlist */
   .star-btn{display:grid;place-items:center;width:32px;height:32px;border-radius:10px;background:var(--paper);border:var(--bd);box-shadow:var(--sh-sm);color:var(--ink-faint);transition:transform .12s,background .12s,color .12s;flex-shrink:0}
   .star-btn:hover{transform:translate(-1px,-1px);box-shadow:var(--sh);color:var(--ink)}
@@ -274,6 +301,9 @@
     <button class="growbtn" id="growBtn" onclick="growCatalog()">
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
       Grow catalog +50</button>
+    <button class="addbtn" onclick="openAddModal()">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/></svg>
+      Add a song</button>
     <div class="growprog" id="growProg" hidden><div class="growfill" id="growFill"></div></div>
     <span class="growmsg" id="growMsg"></span>
   </div>
@@ -302,6 +332,33 @@
   </div>
 
   <p class="footnote"><b>Subtext.</b> Tap <b>Clean only</b>, toggle <b>Undiscovered gems</b>, or <b>Add</b> a no-go artist to watch the compliance gate filter live · open a track for its full reading.</p>
+</div>
+
+<!-- ADD SONG MODAL -->
+<div class="scrim" id="addScrim" onclick="closeAddModal()"></div>
+<div class="add-modal" id="addModal" role="dialog" aria-label="Add song to catalog" aria-modal="true">
+  <div class="add-modal-head">
+    <h3>Add a song to the catalog</h3>
+    <button class="dclose" onclick="closeAddModal()" aria-label="Close"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+  </div>
+  <p class="add-sub">Musixmatch + Mistral + Songstats — takes ~20–30 s. Uses 1 monthly credit.</p>
+  <form id="addForm" onsubmit="return submitAdd(event)">
+    <label class="add-label">Song title
+      <input class="add-input" id="addTitle" type="text" placeholder="e.g. Creep" autocomplete="off" required>
+    </label>
+    <label class="add-label">Artist
+      <input class="add-input" id="addArtist" type="text" placeholder="e.g. Radiohead" autocomplete="off" required>
+    </label>
+    <button class="add-submit" id="addSubmit" type="submit">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+      Enrich &amp; add
+    </button>
+  </form>
+  <div class="add-status" id="addStatus" hidden>
+    <div class="add-spinner" id="addSpinner"></div>
+    <span id="addMsg"></span>
+  </div>
+  <div class="add-result" id="addResult" hidden></div>
 </div>
 
 <!-- DRAWER -->
@@ -540,7 +597,65 @@ function openDrawer(t){
 function closeDrawer(){document.getElementById("scrim").classList.remove("open");document.getElementById("drawer").classList.remove("open");}
 
 /* ---------- controls ---------- */
-document.addEventListener("keydown",e=>{ if(e.key==="Escape"){closeDrawer();} });
+
+/* ---------- add song ---------- */
+let _addPoll=null;
+function openAddModal(){
+  document.getElementById("addScrim").classList.add("open");
+  document.getElementById("addModal").classList.add("open");
+  document.getElementById("addStatus").hidden=true;
+  document.getElementById("addResult").hidden=true;
+  document.getElementById("addSubmit").disabled=false;
+  document.getElementById("addTitle").focus();
+}
+function closeAddModal(){
+  document.getElementById("addScrim").classList.remove("open");
+  document.getElementById("addModal").classList.remove("open");
+  if(_addPoll){clearInterval(_addPoll);_addPoll=null;}
+}
+async function submitAdd(e){
+  e.preventDefault();
+  const title=document.getElementById("addTitle").value.trim();
+  const artist=document.getElementById("addArtist").value.trim();
+  if(!title||!artist) return false;
+  document.getElementById("addSubmit").disabled=true;
+  document.getElementById("addResult").hidden=true;
+  const st=document.getElementById("addStatus"); st.hidden=false;
+  document.getElementById("addSpinner").style.display="block";
+  document.getElementById("addMsg").textContent="Starting…";
+  const res=await fetch("/add",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({title,artist})});
+  const json=await res.json();
+  if(!json.started&&!json.running){
+    document.getElementById("addMsg").textContent="Already running — please wait.";
+    return false;
+  }
+  _addPoll=setInterval(_pollAdd,2500);
+  return false;
+}
+async function _pollAdd(){
+  try{
+    const d=await (await fetch("/add/status")).json();
+    document.getElementById("addMsg").textContent=d.message||"Working…";
+    if(!d.running){
+      clearInterval(_addPoll); _addPoll=null;
+      document.getElementById("addSpinner").style.display="none";
+      document.getElementById("addSubmit").disabled=false;
+      if(d.result){
+        const t=d.result;
+        const already=d.message==="already in catalog";
+        const res=document.getElementById("addResult"); res.hidden=false;
+        const sub=t.trueSubject?(t.divergent?`Sounds like <em>${t.literal}</em> — really about <em>${t.trueSubject}</em>.`:`About <em>${t.trueSubject}</em>. ${cap(t.subtext||"")}.`):"Instrumental.";
+        res.innerHTML=`<div class="ar-title">${t.title}</div><div class="ar-artist">${t.artist} · ${t.genre||"—"} · ${t.year||"—"}</div><div class="ar-sub">${sub}</div><div class="ar-ok"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M5 12l4 4 10-11"/></svg>${already?"Already in catalog":"Added to catalog"}</div>`;
+        if(!already&&!TRACKS.find(x=>String(x.id)===String(t.id))){
+          t.match=0; TRACKS.push(t);
+        }
+      } else if(d.error){
+        document.getElementById("addMsg").textContent=`✕ ${d.message}`;
+      }
+    }
+  }catch(e){/* network glitch — keep polling */}
+}
+document.addEventListener("keydown",e=>{ if(e.key==="Escape"){closeAddModal();closeDrawer();} });
 
 /* ---------- shortlist ---------- */
 function toggleStar(id, btn){
